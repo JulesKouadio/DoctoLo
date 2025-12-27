@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "60493351906",
+    "project_id": "doctolo",
+    "storage_bucket": "doctolo.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:60493351906:android:9661a0ad294f740758c7bb",
+        "android_client_info": {
+          "package_name": "com.juleskouadio.doctolo"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAPjdn_C5PgOx-9DrlGc9DVzEMg8WJcZfs"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
