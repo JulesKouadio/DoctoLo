@@ -16,7 +16,8 @@ class SettingsService {
     AppSettingsConstants.defaultLanguage,
   );
   final ValueNotifier<CurrencyInfo> currencyNotifier = ValueNotifier(
-    AppSettingsConstants.availableCurrencies['EUR']!,
+    AppSettingsConstants.availableCurrencies[AppSettingsConstants
+        .defaultCurrency]!,
   );
 
   /// Initialise les paramètres depuis le cache local
@@ -35,7 +36,8 @@ class SettingsService {
     );
     currencyNotifier.value =
         AppSettingsConstants.availableCurrencies[savedCurrencyCode] ??
-        AppSettingsConstants.availableCurrencies['EUR']!;
+        AppSettingsConstants.availableCurrencies[AppSettingsConstants
+            .defaultCurrency]!;
   }
 
   /// Charge les paramètres depuis Firestore pour un utilisateur

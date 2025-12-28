@@ -6,7 +6,9 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/l10n/app_localizations.dart';
 import '../../../../core/utils/size_config.dart';
 import '../../../../shared/widgets/responsive_layout.dart';
+import '../../../../shared/widgets/currency_widgets.dart';
 import 'package:intl/intl.dart';
+import 'package:uuid/uuid.dart';
 import 'video_call_page.dart';
 
 class AppointmentsListPage extends StatefulWidget {
@@ -43,7 +45,13 @@ class _AppointmentsListPageState extends State<AppointmentsListPage>
         .where(_userIdField, isEqualTo: _currentUserId);
 
     if (status != 'all') {
-      query = query.where('status', isEqualTo: status);
+      // Gérer les cas où plusieurs statuts sont équivalents
+      if (status == 'scheduled') {
+        // 'scheduled' et 'confirmed' sont équivalents (RDV confirmés)
+        query = query.where('status', whereIn: ['scheduled', 'confirmed']);
+      } else {
+        query = query.where('status', isEqualTo: status);
+      }
     }
 
     return query.orderBy('date', descending: false).snapshots();
@@ -277,17 +285,39 @@ class _AppointmentCard extends StatelessWidget {
   }
 
   IconData _getTypeIcon(String type) {
-    if (type == 'telemedicine') {
-      return CupertinoIcons.videocam_fill;
+    switch (type.toLowerCase()) {
+      case 'telemedicine':
+      case 'téléconsultation':
+        return CupertinoIcons.videocam_fill;
+      case 'home':
+      case 'domicile':
+        return CupertinoIcons.house_fill;
+      case 'cabinet':
+      case 'office':
+      default:
+        return CupertinoIcons.building_2_fill;
     }
-    return CupertinoIcons.plus_circle;
   }
 
   String _getTypeLabel(String type) {
-    if (type == 'telemedicine') {
-      return 'Téléconsultation';
+    switch (type.toLowerCase()) {
+      case 'telemedicine':
+      case 'téléconsultation':
+        return 'Téléconsultation';
+      case 'home':
+      case 'domicile':
+        return 'À domicile';
+      case 'cabinet':
+      case 'office':
+        return 'Au cabinet';
+      default:
+        return type;
     }
-    return 'Au cabinet';
+  }
+
+  bool _isTelemedicine(String type) {
+    return type.toLowerCase() == 'telemedicine' ||
+        type.toLowerCase() == 'téléconsultation';
   }
 
   @override
@@ -301,7 +331,6 @@ class _AppointmentCard extends StatelessWidget {
         ? appointment['patientName']
         : 'Dr. ${appointment['doctorName']}';
     final specialty = appointment['specialty'] as String? ?? '';
-    final reason = appointment['reason'] as String? ?? '';
 
     final dateFormatter = DateFormat('EEEE d MMMM yyyy', 'fr_FR');
     final formattedDate = dateFormatter.format(date);
@@ -429,8 +458,8 @@ class _AppointmentCard extends StatelessWidget {
                       ),
                     ),
                   ),
-                  Text(
-                    '${fee.toStringAsFixed(0)}€',
+                  CurrencyText(
+                    amount: fee,
                     style: TextStyle(
                       fontSize: getProportionateScreenHeight(18),
                       fontWeight: FontWeight.bold,
@@ -465,11 +494,11 @@ class _AppointmentCard extends StatelessWidget {
                       label: const Text('Annuler'),
                       style: TextButton.styleFrom(foregroundColor: Colors.red),
                     ),
-                    if (status == 'scheduled' && type == 'telemedicine')
+                    if (status == 'scheduled' && _isTelemedicine(type))
                       TextButton.icon(
                         onPressed: () => _startVideoCall(context),
                         icon: const Icon(CupertinoIcons.videocam, size: 18),
-                        label: const Text('Rejoindre'),
+                        label: Text(isDoctorView ? 'Démarrer' : 'Rejoindre'),
                         style: TextButton.styleFrom(
                           foregroundColor: AppColors.primary,
                         ),
@@ -561,10 +590,10 @@ class _AppointmentCard extends StatelessWidget {
                 label: 'Type',
                 value: _getTypeLabel(type),
               ),
-              _DetailItem(
-                icon: CupertinoIcons.money_euro,
+              _DetailItemWithCurrency(
+                icon: CupertinoIcons.money_dollar,
                 label: 'Tarif',
-                value: '${fee.toStringAsFixed(0)}€',
+                amount: fee,
               ),
               _DetailItem(
                 icon: CupertinoIcons.info_circle,
@@ -593,8 +622,7 @@ class _AppointmentCard extends StatelessWidget {
               ],
 
               // Bouton de démarrage de la téléconsultation
-              if (status == 'scheduled' &&
-                  type.toLowerCase().contains('téléconsultation')) ...[
+              if (status == 'scheduled' && _isTelemedicine(type)) ...[
                 const SizedBox(height: 24),
                 SizedBox(
                   width: double.infinity,
@@ -604,11 +632,17 @@ class _AppointmentCard extends StatelessWidget {
                       _startVideoCall(context);
                     },
                     icon: const Icon(CupertinoIcons.videocam),
-                    label: const Text('Démarrer la consultation'),
+                    label: Text(
+                      isDoctorView
+                          ? 'Démarrer la téléconsultation'
+                          : 'Rejoindre la téléconsultation',
+                    ),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.primary,
                       foregroundColor: Colors.white,
-                      padding: EdgeInsets.symmetric(vertical: getProportionateScreenHeight(16)),
+                      padding: EdgeInsets.symmetric(
+                        vertical: getProportionateScreenHeight(16),
+                      ),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
@@ -623,34 +657,82 @@ class _AppointmentCard extends StatelessWidget {
     );
   }
 
-  void _startVideoCall(BuildContext context) {
-    final videoCallId = appointment['videoCallId'] as String?;
-    final appointmentId = appointment['id'] as String;
+  Future<void> _startVideoCall(BuildContext context) async {
+    String? videoCallId = appointment['videoCallId'] as String?;
+    final appointmentId = appointment['id'] as String?;
     final otherUserName = isDoctorView
         ? appointment['patientName']
         : 'Dr. ${appointment['doctorName']}';
 
-    if (videoCallId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('❌ Erreur: ID de visio manquant'),
-          backgroundColor: Colors.red,
-        ),
-      );
+    // Si pas de videoCallId et c'est le docteur qui initie, en créer un
+    if ((videoCallId == null || videoCallId.isEmpty) &&
+        isDoctorView &&
+        appointmentId != null) {
+      try {
+        videoCallId = const Uuid().v4();
+        await FirebaseFirestore.instance
+            .collection('appointments')
+            .doc(appointmentId)
+            .update({
+              'videoCallId': videoCallId,
+              'callInitiatedAt': FieldValue.serverTimestamp(),
+              'callInitiatedBy': 'doctor',
+            });
+
+        // Notifier le patient
+        final patientId = appointment['patientId'] as String?;
+        if (patientId != null) {
+          await FirebaseFirestore.instance.collection('notifications').add({
+            'userId': patientId,
+            'type': 'teleconsultation_started',
+            'title': 'Téléconsultation démarrée',
+            'message': 'Le médecin vous attend pour votre téléconsultation',
+            'appointmentId': appointmentId,
+            'videoCallId': videoCallId,
+            'isRead': false,
+            'createdAt': FieldValue.serverTimestamp(),
+          });
+        }
+      } catch (e) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Erreur de création de la session: $e'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+        return;
+      }
+    }
+
+    if (videoCallId == null || videoCallId.isEmpty) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'La session de téléconsultation n\'est pas encore prête. Le médecin doit la démarrer.',
+            ),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
       return;
     }
 
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => VideoCallPage(
-          channelName: videoCallId,
-          appointmentId: appointmentId,
-          userName: otherUserName,
-          isDoctor: isDoctorView,
+    if (context.mounted) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => VideoCallPage(
+            channelName: videoCallId!,
+            appointmentId: appointmentId ?? '',
+            userName: otherUserName,
+            isDoctor: isDoctorView,
+          ),
         ),
-      ),
-    );
+      );
+    }
   }
 
   Future<void> _confirmAppointment(BuildContext context) async {
@@ -759,7 +841,6 @@ class _AppointmentCard extends StatelessWidget {
             .get();
 
         if (query.docs.isNotEmpty) {
-          final currentUserId = FirebaseAuth.instance.currentUser?.uid;
           final cancelledBy = isDoctorView ? 'doctor' : 'patient';
           final recipientId = isDoctorView
               ? appointment['patientId']
@@ -850,6 +931,54 @@ class _DetailItem extends StatelessWidget {
                     fontSize: getProportionateScreenHeight(16),
                     fontWeight: FontWeight.w600,
                     color: valueColor,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DetailItemWithCurrency extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final double amount;
+
+  const _DetailItemWithCurrency({
+    required this.icon,
+    required this.label,
+    required this.amount,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.only(bottom: getProportionateScreenHeight(16)),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 24, color: AppColors.primary),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: getProportionateScreenHeight(14),
+                    color: Colors.grey[600],
+                  ),
+                ),
+                const SizedBox(height: 4),
+                CurrencyText(
+                  amount: amount,
+                  style: TextStyle(
+                    fontSize: getProportionateScreenHeight(16),
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ],

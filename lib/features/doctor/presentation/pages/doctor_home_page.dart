@@ -4,9 +4,11 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
+import 'package:uuid/uuid.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/size_config.dart';
 import '../../../../core/l10n/app_localizations.dart';
+import '../../../../core/services/hive_service.dart';
 import '../../../auth/presentation/bloc/auth_bloc.dart';
 import '../../../../data/models/user_model.dart';
 import '../../../../shared/widgets/section_header.dart';
@@ -23,6 +25,7 @@ import 'patients_list_page.dart';
 import 'patient_detail_page.dart';
 import '../../../settings/presentation/pages/account_settings_page.dart';
 import '../../../messages/presentation/pages/doctor_messages_page.dart';
+import '../../../appointment/presentation/pages/video_call_page.dart';
 
 class DoctorHomePage extends StatefulWidget {
   const DoctorHomePage({super.key});
@@ -103,10 +106,50 @@ class _DashboardPageState extends State<_DashboardPage> {
   double _monthlyRevenue = 0;
   bool _isLoading = true;
 
+  final HiveService _hiveService = HiveService();
+  static const String _dashboardCacheKey = 'dashboard_stats';
+
   @override
   void initState() {
     super.initState();
-    _loadDashboardStats();
+    _loadFromCacheThenFirebase();
+    _setupFirebaseListener();
+  }
+
+  /// Charge d'abord depuis le cache Hive, puis met à jour depuis Firebase
+  Future<void> _loadFromCacheThenFirebase() async {
+    // 1. Charger depuis Hive (rapide)
+    final cachedStats = _hiveService.getCachedData(_dashboardCacheKey);
+    if (cachedStats != null && cachedStats is Map) {
+      if (mounted) {
+        setState(() {
+          _totalPatients = cachedStats['totalPatients'] ?? 0;
+          _todayAppointments = cachedStats['todayAppointments'] ?? 0;
+          _waitingAppointments = cachedStats['waitingAppointments'] ?? 0;
+          _monthlyRevenue = (cachedStats['monthlyRevenue'] ?? 0).toDouble();
+          _isLoading = false;
+        });
+      }
+    }
+
+    // 2. Mettre à jour depuis Firebase
+    await _loadDashboardStats();
+  }
+
+  /// Configure un listener Firebase pour les mises à jour en temps réel
+  void _setupFirebaseListener() {
+    final userId = FirebaseAuth.instance.currentUser?.uid;
+    if (userId == null) return;
+
+    // Écouter les changements dans les rendez-vous
+    FirebaseFirestore.instance
+        .collection('appointments')
+        .where('doctorId', isEqualTo: userId)
+        .snapshots()
+        .listen((snapshot) {
+          // Recharger les stats quand les RDV changent
+          _loadDashboardStats();
+        });
   }
 
   Future<void> _loadDashboardStats() async {
@@ -185,6 +228,15 @@ class _DashboardPageState extends State<_DashboardPage> {
           _monthlyRevenue = revenue;
           _isLoading = false;
         });
+
+        // Sauvegarder dans le cache Hive pour le prochain chargement
+        await _hiveService.cacheData(_dashboardCacheKey, {
+          'totalPatients': uniquePatientIds.length,
+          'todayAppointments': todayAppointmentsSnapshot.docs.length,
+          'waitingAppointments': waitingAppointmentsSnapshot.docs.length,
+          'monthlyRevenue': revenue,
+          'lastUpdated': DateTime.now().millisecondsSinceEpoch,
+        }, ttl: const Duration(hours: 24));
       }
     } catch (e) {
       print('❌ Erreur chargement stats dashboard: $e');
@@ -201,6 +253,230 @@ class _DashboardPageState extends State<_DashboardPage> {
       return '${(revenue / 1000).toStringAsFixed(1)}K';
     } else {
       return revenue.toStringAsFixed(0);
+    }
+  }
+
+  /// Affiche un dialogue pour créer un nouveau patient non enregistré
+  Future<void> _showNewPatientDialog(
+    BuildContext context,
+    UserModel? user,
+  ) async {
+    if (user == null) return;
+
+    final firstNameController = TextEditingController();
+    final lastNameController = TextEditingController();
+    final phoneController = TextEditingController();
+    final reasonController = TextEditingController();
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Nouveau Patient'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'Enregistrez un patient qui n\'a pas pris rendez-vous',
+                style: TextStyle(color: Colors.grey),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: lastNameController,
+                decoration: const InputDecoration(
+                  labelText: 'Nom *',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: firstNameController,
+                decoration: const InputDecoration(
+                  labelText: 'Prénom *',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: phoneController,
+                decoration: const InputDecoration(
+                  labelText: 'Téléphone',
+                  border: OutlineInputBorder(),
+                ),
+                keyboardType: TextInputType.phone,
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: reasonController,
+                decoration: const InputDecoration(
+                  labelText: 'Motif de consultation',
+                  border: OutlineInputBorder(),
+                ),
+                maxLines: 2,
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Annuler'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              if (lastNameController.text.isEmpty ||
+                  firstNameController.text.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Veuillez remplir le nom et le prénom'),
+                  ),
+                );
+                return;
+              }
+              Navigator.pop(context, true);
+            },
+            child: const Text('Créer la consultation'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      try {
+        final patientId = const Uuid().v4();
+        final appointmentId = const Uuid().v4();
+        final now = DateTime.now();
+
+        // Créer un rendez-vous immédiat pour ce patient non enregistré
+        await FirebaseFirestore.instance
+            .collection('appointments')
+            .doc(appointmentId)
+            .set({
+              'id': appointmentId,
+              'patientId': patientId,
+              'patientName':
+                  '${firstNameController.text} ${lastNameController.text}',
+              'patientPhone': phoneController.text,
+              'isUnregisteredPatient': true,
+              'doctorId': user.id,
+              'doctorName': '${user.firstName} ${user.lastName}',
+              'date': Timestamp.fromDate(now),
+              'timeSlot': DateFormat('HH:mm').format(now),
+              'type': 'cabinet',
+              'status': 'in_progress',
+              'reason': reasonController.text,
+              'fee': 0,
+              'createdAt': FieldValue.serverTimestamp(),
+            });
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Consultation créée avec succès'),
+              backgroundColor: Colors.green,
+            ),
+          );
+          // Recharger les stats
+          _loadDashboardStats();
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('Erreur: $e')));
+        }
+      }
+    }
+  }
+
+  /// Démarre la prochaine téléconsultation confirmée
+  Future<void> _startNextTeleconsultation(
+    BuildContext context,
+    UserModel? user,
+  ) async {
+    if (user == null) return;
+
+    try {
+      // Chercher la prochaine téléconsultation confirmée
+      final snapshot = await FirebaseFirestore.instance
+          .collection('appointments')
+          .where('doctorId', isEqualTo: user.id)
+          .where('status', whereIn: ['confirmed', 'scheduled'])
+          .where('type', whereIn: ['telemedicine', 'téléconsultation'])
+          .orderBy('date')
+          .limit(1)
+          .get();
+
+      if (snapshot.docs.isEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Aucune téléconsultation programmée'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+        return;
+      }
+
+      final appointment = snapshot.docs.first.data();
+      final appointmentId = snapshot.docs.first.id;
+      String? videoCallId = appointment['videoCallId'] as String?;
+
+      // Créer un videoCallId si nécessaire
+      if (videoCallId == null || videoCallId.isEmpty) {
+        videoCallId = const Uuid().v4();
+        await snapshot.docs.first.reference.update({
+          'videoCallId': videoCallId,
+          'callInitiatedAt': FieldValue.serverTimestamp(),
+          'callInitiatedBy': 'doctor',
+        });
+
+        // Notifier le patient
+        final patientId = appointment['patientId'] as String?;
+        if (patientId != null) {
+          await FirebaseFirestore.instance.collection('notifications').add({
+            'userId': patientId,
+            'type': 'teleconsultation_started',
+            'title': 'Téléconsultation démarrée',
+            'message':
+                'Dr. ${user.lastName} vous attend pour votre téléconsultation',
+            'appointmentId': appointmentId,
+            'videoCallId': videoCallId,
+            'isRead': false,
+            'createdAt': FieldValue.serverTimestamp(),
+          });
+        }
+      }
+
+      if (mounted) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => VideoCallPage(
+              channelName: videoCallId!,
+              appointmentId: appointmentId,
+              userName: appointment['patientName'] ?? 'Patient',
+              isDoctor: true,
+            ),
+          ),
+        ).then((_) => _loadDashboardStats());
+      }
+    } catch (e) {
+      // Afficher l'erreur complète pour debug (notamment le lien de création d'index Firebase)
+      print('❌ Erreur téléconsultation: $e');
+      print(
+        '🔗 Si c\'est une erreur d\'index, copiez le lien ci-dessus pour créer l\'index Firebase',
+      );
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erreur: $e'),
+            duration: const Duration(seconds: 10),
+          ),
+        );
+      }
     }
   }
 
@@ -332,7 +608,7 @@ class _DashboardPageState extends State<_DashboardPage> {
                         child: _QuickActionCard(
                           icon: CupertinoIcons.add_circled,
                           title: l10n.newPatient,
-                          onTap: () {},
+                          onTap: () => _showNewPatientDialog(context, user),
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -340,7 +616,8 @@ class _DashboardPageState extends State<_DashboardPage> {
                         child: _QuickActionCard(
                           icon: CupertinoIcons.videocam_fill,
                           title: l10n.telemedicine,
-                          onTap: () {},
+                          onTap: () =>
+                              _startNextTeleconsultation(context, user),
                         ),
                       ),
                     ],

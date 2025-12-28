@@ -340,8 +340,8 @@ class _HomePage extends StatelessWidget {
                             .where('patientId', isEqualTo: user.id)
                             .where(
                               'status',
-                              isEqualTo: 'scheduled',
-                            ) // Seulement les rendez-vous confirmés
+                              whereIn: ['scheduled', 'confirmed'],
+                            ) // Rendez-vous confirmés
                             .orderBy('date')
                             .limit(3)
                             .snapshots(),

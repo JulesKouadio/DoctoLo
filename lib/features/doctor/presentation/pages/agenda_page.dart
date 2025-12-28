@@ -4,10 +4,12 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:table_calendar/table_calendar.dart';
 import 'package:intl/intl.dart';
+import 'package:uuid/uuid.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/l10n/app_localizations.dart';
 import '../../../../core/utils/size_config.dart';
 import '../../../../shared/widgets/responsive_layout.dart';
+import '../../../../shared/widgets/currency_widgets.dart';
 import '../../../appointment/presentation/pages/video_call_page.dart';
 
 class AgendaPage extends StatefulWidget {
@@ -100,6 +102,42 @@ class _AgendaPageState extends State<AgendaPage> {
       default:
         return Colors.grey;
     }
+  }
+
+  IconData _getTypeIcon(String type) {
+    switch (type.toLowerCase()) {
+      case 'telemedicine':
+      case 'téléconsultation':
+        return CupertinoIcons.videocam_fill;
+      case 'home':
+      case 'domicile':
+        return CupertinoIcons.house_fill;
+      case 'cabinet':
+      case 'office':
+      default:
+        return CupertinoIcons.building_2_fill;
+    }
+  }
+
+  String _getTypeLabel(String type) {
+    switch (type.toLowerCase()) {
+      case 'telemedicine':
+      case 'téléconsultation':
+        return 'Téléconsultation';
+      case 'home':
+      case 'domicile':
+        return 'À domicile';
+      case 'cabinet':
+      case 'office':
+        return 'Au cabinet';
+      default:
+        return type;
+    }
+  }
+
+  bool _isTelemedicine(String type) {
+    return type.toLowerCase() == 'telemedicine' ||
+        type.toLowerCase() == 'téléconsultation';
   }
 
   @override
@@ -534,18 +572,14 @@ class _AgendaPageState extends State<AgendaPage> {
                 value: timeSlot,
               ),
               _DetailRow(
-                icon: type == 'telemedicine'
-                    ? CupertinoIcons.videocam_fill
-                    : CupertinoIcons.plus_circle,
+                icon: _getTypeIcon(type),
                 label: 'Type',
-                value: type == 'telemedicine'
-                    ? 'Téléconsultation'
-                    : 'Consultation au cabinet',
+                value: _getTypeLabel(type),
               ),
-              _DetailRow(
-                icon: CupertinoIcons.money_euro,
+              _DetailRowWithCurrency(
+                icon: CupertinoIcons.money_dollar,
                 label: 'Tarif',
-                value: '${fee.toStringAsFixed(0)}€',
+                amount: fee,
               ),
 
               if (reason.isNotEmpty) ...[
@@ -611,14 +645,14 @@ class _AgendaPageState extends State<AgendaPage> {
                     ),
                   ],
                 ),
-              ] else if (status == 'confirmed' && type == 'telemedicine') ...[
+              ] else if (status == 'confirmed' && _isTelemedicine(type)) ...[
                 ElevatedButton.icon(
                   onPressed: () {
                     Navigator.pop(context);
                     _startVideoCall(appointment);
                   },
                   icon: const Icon(CupertinoIcons.videocam),
-                  label: const Text('Démarrer la consultation'),
+                  label: const Text('Démarrer la téléconsultation'),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primary,
                     foregroundColor: Colors.white,
@@ -746,26 +780,59 @@ class _AgendaPageState extends State<AgendaPage> {
     }
   }
 
-  void _startVideoCall(Map<String, dynamic> appointment) {
-    final videoCallId = appointment['videoCallId'] as String?;
+  Future<void> _startVideoCall(Map<String, dynamic> appointment) async {
+    String? videoCallId = appointment['videoCallId'] as String?;
     final appointmentId = appointment['id'] as String;
     final patientName = appointment['patientName'] as String;
 
-    if (videoCallId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('❌ Erreur: ID de visio manquant'),
-          backgroundColor: Colors.red,
-        ),
-      );
-      return;
+    // Si pas de videoCallId, en créer un et le sauvegarder
+    if (videoCallId == null || videoCallId.isEmpty) {
+      try {
+        videoCallId = const Uuid().v4();
+        await FirebaseFirestore.instance
+            .collection('appointments')
+            .doc(appointmentId)
+            .update({
+              'videoCallId': videoCallId,
+              'callInitiatedAt': FieldValue.serverTimestamp(),
+              'callInitiatedBy': 'doctor',
+            });
+
+        // Créer une notification pour le patient
+        final patientId = appointment['patientId'] as String?;
+        if (patientId != null) {
+          await FirebaseFirestore.instance.collection('notifications').add({
+            'userId': patientId,
+            'type': 'teleconsultation_started',
+            'title': 'Téléconsultation démarrée',
+            'message':
+                'Le Dr. ${appointment['doctorName'] ?? 'votre médecin'} vous attend pour votre téléconsultation',
+            'appointmentId': appointmentId,
+            'videoCallId': videoCallId,
+            'isRead': false,
+            'createdAt': FieldValue.serverTimestamp(),
+          });
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Erreur de création de la session: $e'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+        return;
+      }
     }
+
+    if (!mounted) return;
 
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => VideoCallPage(
-          channelName: videoCallId,
+          channelName: videoCallId!,
           appointmentId: appointmentId,
           userName: patientName,
           isDoctor: true,
@@ -803,6 +870,37 @@ class _AppointmentTimelineCard extends StatelessWidget {
         return Colors.red;
       default:
         return Colors.grey;
+    }
+  }
+
+  IconData _getTypeIcon(String type) {
+    switch (type.toLowerCase()) {
+      case 'telemedicine':
+      case 'téléconsultation':
+        return CupertinoIcons.videocam_fill;
+      case 'home':
+      case 'domicile':
+        return CupertinoIcons.house_fill;
+      case 'cabinet':
+      case 'office':
+      default:
+        return CupertinoIcons.building_2_fill;
+    }
+  }
+
+  String _getTypeLabel(String type) {
+    switch (type.toLowerCase()) {
+      case 'telemedicine':
+      case 'téléconsultation':
+        return 'Téléconsultation';
+      case 'home':
+      case 'domicile':
+        return 'À domicile';
+      case 'cabinet':
+      case 'office':
+        return 'Au cabinet';
+      default:
+        return type;
     }
   }
 
@@ -878,9 +976,7 @@ class _AppointmentTimelineCard extends StatelessWidget {
                   Row(
                     children: [
                       Icon(
-                        type == 'telemedicine'
-                            ? CupertinoIcons.videocam_fill
-                            : CupertinoIcons.plus_circle,
+                        _getTypeIcon(type),
                         color: AppColors.primary,
                         size: 20,
                       ),
@@ -934,15 +1030,13 @@ class _AppointmentTimelineCard extends StatelessWidget {
                       ),
                       const SizedBox(width: 16),
                       Icon(
-                        type == 'telemedicine'
-                            ? CupertinoIcons.videocam
-                            : CupertinoIcons.location,
+                        _getTypeIcon(type),
                         size: 14,
                         color: Colors.grey[600],
                       ),
                       const SizedBox(width: 4),
                       Text(
-                        type == 'telemedicine' ? 'Téléconsultation' : 'Cabinet',
+                        _getTypeLabel(type),
                         style: TextStyle(
                           fontSize: getProportionateScreenHeight(13),
                           color: Colors.grey[700],
@@ -996,6 +1090,21 @@ class _AppointmentCard extends StatelessWidget {
     }
   }
 
+  IconData _getTypeIcon(String type) {
+    switch (type.toLowerCase()) {
+      case 'telemedicine':
+      case 'téléconsultation':
+        return CupertinoIcons.videocam_fill;
+      case 'home':
+      case 'domicile':
+        return CupertinoIcons.house_fill;
+      case 'cabinet':
+      case 'office':
+      default:
+        return CupertinoIcons.building_2_fill;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final status = appointment['status'] as String;
@@ -1035,13 +1144,7 @@ class _AppointmentCard extends StatelessWidget {
                     ),
                   ),
                   const Spacer(),
-                  Icon(
-                    type == 'telemedicine'
-                        ? CupertinoIcons.videocam_fill
-                        : CupertinoIcons.plus_circle,
-                    color: AppColors.primary,
-                    size: 20,
-                  ),
+                  Icon(_getTypeIcon(type), color: AppColors.primary, size: 20),
                 ],
               ),
               const SizedBox(height: 12),
@@ -1124,6 +1227,53 @@ class _DetailRow extends StatelessWidget {
                 const SizedBox(height: 2),
                 Text(
                   value,
+                  style: TextStyle(
+                    fontSize: getProportionateScreenHeight(15),
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DetailRowWithCurrency extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final double amount;
+
+  const _DetailRowWithCurrency({
+    required this.icon,
+    required this.label,
+    required this.amount,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.only(bottom: getProportionateScreenHeight(16)),
+      child: Row(
+        children: [
+          Icon(icon, size: 20, color: AppColors.primary),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: getProportionateScreenHeight(12),
+                    color: Colors.grey[600],
+                  ),
+                ),
+                const SizedBox(height: 2),
+                CurrencyText(
+                  amount: amount,
                   style: TextStyle(
                     fontSize: getProportionateScreenHeight(15),
                     fontWeight: FontWeight.w600,
