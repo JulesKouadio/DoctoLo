@@ -4,6 +4,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:geolocator/geolocator.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/size_config.dart';
+import '../../../../core/utils/responsive.dart';
 import '../../../../data/models/pharmacy_model.dart';
 import '../../../../data/constants/pharmacy_data.dart';
 import 'pharmacy_details_page.dart';
@@ -122,6 +123,10 @@ class _OnDutyPharmaciesPageState extends State<OnDutyPharmaciesPage> {
 
   @override
   Widget build(BuildContext context) {
+    final isDesktop = context.isDesktop;
+    final isTablet = context.isTablet;
+    final maxWidth = isDesktop ? 900.0 : (isTablet ? 700.0 : double.infinity);
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Pharmacies de Garde'),
@@ -130,7 +135,7 @@ class _OnDutyPharmaciesPageState extends State<OnDutyPharmaciesPage> {
         iconTheme: const IconThemeData(color: AppColors.primary),
         titleTextStyle: TextStyle(
           color: AppColors.primary,
-          fontSize: getProportionateScreenHeight(20),
+          fontSize: isDesktop ? 22 : 20,
           fontWeight: FontWeight.bold,
         ),
         actions: [
@@ -148,208 +153,227 @@ class _OnDutyPharmaciesPageState extends State<OnDutyPharmaciesPage> {
           ),
         ],
       ),
-      body: Column(
-        children: [
-          // Barre de recherche
-          Padding(
-            padding: EdgeInsets.all(getProportionateScreenWidth(16)),
-            child: TextField(
-              controller: _searchController,
-              onChanged: _searchPharmacies,
-              decoration: InputDecoration(
-                hintText: 'Rechercher une pharmacie...',
-                prefixIcon: const Icon(CupertinoIcons.search),
-                suffixIcon: _searchController.text.isNotEmpty
-                    ? IconButton(
-                        icon: const Icon(CupertinoIcons.clear_circled_solid),
-                        onPressed: () {
-                          _searchController.clear();
-                          _searchPharmacies('');
-                        },
-                      )
-                    : null,
-                filled: true,
-                fillColor: Colors.grey[100],
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide.none,
+      body: Center(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(maxWidth: maxWidth),
+          child: Column(
+            children: [
+              // Barre de recherche
+              Padding(
+                padding: EdgeInsets.all(isDesktop ? 24 : 16),
+                child: TextField(
+                  controller: _searchController,
+                  onChanged: _searchPharmacies,
+                  decoration: InputDecoration(
+                    hintText: 'Rechercher une pharmacie...',
+                    prefixIcon: const Icon(CupertinoIcons.search),
+                    suffixIcon: _searchController.text.isNotEmpty
+                        ? IconButton(
+                            icon: const Icon(
+                              CupertinoIcons.clear_circled_solid,
+                            ),
+                            onPressed: () {
+                              _searchController.clear();
+                              _searchPharmacies('');
+                            },
+                          )
+                        : null,
+                    filled: true,
+                    fillColor: Colors.grey[100],
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide.none,
+                    ),
+                  ),
                 ),
               ),
-            ),
-          ),
 
-          // Info message
-          if (_sortByDistance && _userPosition != null)
-            Container(
-              margin: EdgeInsets.symmetric(horizontal: getProportionateScreenWidth(16), vertical: getProportionateScreenHeight(8)),
-              padding: EdgeInsets.all(getProportionateScreenWidth(12)),
-              decoration: BoxDecoration(
-                color: AppColors.primary.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Row(
-                children: [
-                  const Icon(
-                    CupertinoIcons.info,
-                    color: AppColors.primary,
-                    size: 20,
+              // Info message
+              if (_sortByDistance && _userPosition != null)
+                Container(
+                  margin: EdgeInsets.symmetric(
+                    horizontal: getProportionateScreenWidth(16),
+                    vertical: getProportionateScreenHeight(8),
                   ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'Pharmacies triées par proximité',
-                      style: TextStyle(color: AppColors.primary),
-                    ),
+                  padding: EdgeInsets.all(getProportionateScreenWidth(12)),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
                   ),
-                ],
-              ),
-            ),
+                  child: Row(
+                    children: [
+                      const Icon(
+                        CupertinoIcons.info,
+                        color: AppColors.primary,
+                        size: 20,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Pharmacies triées par proximité',
+                          style: TextStyle(color: AppColors.primary),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
 
-          // Liste des pharmacies
-          Expanded(
-            child: _isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : _filteredPharmacies.isEmpty
-                ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          CupertinoIcons.search,
-                          size: 64,
-                          color: Colors.grey[400],
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          'Aucune pharmacie trouvée',
-                          style: TextStyle(
-                            color: Colors.grey[600],
-                            fontSize: getProportionateScreenHeight(16),
-                          ),
-                        ),
-                      ],
-                    ),
-                  )
-                : ListView.builder(
-                    padding: EdgeInsets.all(getProportionateScreenWidth(16)),
-                    itemCount: _filteredPharmacies.length,
-                    itemBuilder: (context, index) {
-                      final pharmacy = _filteredPharmacies[index];
-                      double? distance;
-                      if (_userPosition != null) {
-                        distance = pharmacy.distanceFrom(
-                          _userPosition!.latitude,
-                          _userPosition!.longitude,
-                        );
-                      }
-
-                      return Card(
-                        margin: EdgeInsets.only(bottom: getProportionateScreenHeight(12)),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: ListTile(
-                          contentPadding: EdgeInsets.all(getProportionateScreenWidth(16)),
-                          leading: Container(
-                            padding: EdgeInsets.all(getProportionateScreenWidth(12)),
-                            decoration: BoxDecoration(
-                              color: AppColors.primary.withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(10),
+              // Liste des pharmacies
+              Expanded(
+                child: _isLoading
+                    ? const Center(child: CircularProgressIndicator())
+                    : _filteredPharmacies.isEmpty
+                    ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              CupertinoIcons.search,
+                              size: 64,
+                              color: Colors.grey[400],
                             ),
-                            child: const Icon(
-                              CupertinoIcons.building_2_fill,
-                              color: AppColors.primary,
-                            ),
-                          ),
-                          title: Text(
-                            pharmacy.name,
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: getProportionateScreenHeight(16),
-                            ),
-                          ),
-                          subtitle: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const SizedBox(height: 4),
-                              Row(
-                                children: [
-                                  const Icon(
-                                    CupertinoIcons.location_solid,
-                                    size: 14,
-                                    color: Colors.grey,
-                                  ),
-                                  const SizedBox(width: 4),
-                                  Text(pharmacy.commune),
-                                ],
+                            const SizedBox(height: 16),
+                            Text(
+                              'Aucune pharmacie trouvée',
+                              style: TextStyle(
+                                color: Colors.grey[600],
+                                fontSize: getProportionateScreenHeight(16),
                               ),
-                              const SizedBox(height: 2),
-                              Row(
+                            ),
+                          ],
+                        ),
+                      )
+                    : ListView.builder(
+                        padding: EdgeInsets.all(
+                          getProportionateScreenWidth(16),
+                        ),
+                        itemCount: _filteredPharmacies.length,
+                        itemBuilder: (context, index) {
+                          final pharmacy = _filteredPharmacies[index];
+                          double? distance;
+                          if (_userPosition != null) {
+                            distance = pharmacy.distanceFrom(
+                              _userPosition!.latitude,
+                              _userPosition!.longitude,
+                            );
+                          }
+
+                          return Card(
+                            margin: EdgeInsets.only(
+                              bottom: getProportionateScreenHeight(12),
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: ListTile(
+                              contentPadding: EdgeInsets.all(
+                                getProportionateScreenWidth(16),
+                              ),
+                              leading: Container(
+                                padding: EdgeInsets.all(
+                                  getProportionateScreenWidth(12),
+                                ),
+                                decoration: BoxDecoration(
+                                  color: AppColors.primary.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: const Icon(
+                                  CupertinoIcons.building_2_fill,
+                                  color: AppColors.primary,
+                                ),
+                              ),
+                              title: Text(
+                                pharmacy.name,
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: getProportionateScreenHeight(16),
+                                ),
+                              ),
+                              subtitle: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  const Icon(
-                                    CupertinoIcons.person,
-                                    size: 14,
-                                    color: Colors.grey,
+                                  const SizedBox(height: 4),
+                                  Row(
+                                    children: [
+                                      const Icon(
+                                        CupertinoIcons.location_solid,
+                                        size: 14,
+                                        color: Colors.grey,
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Text(pharmacy.commune),
+                                    ],
                                   ),
-                                  const SizedBox(width: 4),
-                                  Expanded(
-                                    child: Text(
-                                      pharmacy.doctorName,
-                                      style: TextStyle(
-                                        fontSize: getProportionateScreenHeight(
-                                          12,
+                                  const SizedBox(height: 2),
+                                  Row(
+                                    children: [
+                                      const Icon(
+                                        CupertinoIcons.person,
+                                        size: 14,
+                                        color: Colors.grey,
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Expanded(
+                                        child: Text(
+                                          pharmacy.doctorName,
+                                          style: TextStyle(
+                                            fontSize:
+                                                getProportionateScreenHeight(
+                                                  12,
+                                                ),
+                                          ),
                                         ),
                                       ),
-                                    ),
+                                    ],
                                   ),
-                                ],
-                              ),
-                              if (distance != null) ...[
-                                const SizedBox(height: 2),
-                                Row(
-                                  children: [
-                                    const Icon(
-                                      CupertinoIcons.location,
-                                      size: 14,
-                                      color: AppColors.primary,
-                                    ),
-                                    const SizedBox(width: 4),
-                                    Text(
-                                      '${distance.toStringAsFixed(1)} km',
-                                      style: const TextStyle(
-                                        color: AppColors.primary,
-                                        fontWeight: FontWeight.w500,
-                                      ),
+                                  if (distance != null) ...[
+                                    const SizedBox(height: 2),
+                                    Row(
+                                      children: [
+                                        const Icon(
+                                          CupertinoIcons.location,
+                                          size: 14,
+                                          color: AppColors.primary,
+                                        ),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          '${distance.toStringAsFixed(1)} km',
+                                          style: const TextStyle(
+                                            color: AppColors.primary,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                   ],
-                                ),
-                              ],
-                            ],
-                          ),
-                          trailing: IconButton(
-                            icon: const Icon(
-                              CupertinoIcons.phone_fill,
-                              color: AppColors.accent,
-                            ),
-                            onPressed: () => _callPharmacy(pharmacy.phone),
-                          ),
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => PharmacyDetailsPage(
-                                  pharmacy: pharmacy,
-                                  distance: distance,
-                                ),
+                                ],
                               ),
-                            );
-                          },
-                        ),
-                      );
-                    },
-                  ),
+                              trailing: IconButton(
+                                icon: const Icon(
+                                  CupertinoIcons.phone_fill,
+                                  color: AppColors.accent,
+                                ),
+                                onPressed: () => _callPharmacy(pharmacy.phone),
+                              ),
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => PharmacyDetailsPage(
+                                      pharmacy: pharmacy,
+                                      distance: distance,
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                          );
+                        },
+                      ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }

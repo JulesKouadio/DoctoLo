@@ -11,6 +11,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/size_config.dart';
+import '../../../../core/utils/responsive.dart';
 import '../../../../data/models/message_model.dart';
 import 'create_prescription_page.dart';
 
@@ -369,14 +370,10 @@ class _ChatPageState extends State<ChatPage> {
   }
 
   void _showAttachmentOptions() {
-    showModalBottomSheet(
+    showAdaptiveSimpleSheet(
       context: context,
-      backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-        ),
+      dialogWidth: 400,
+      builder: (context) => Padding(
         padding: EdgeInsets.symmetric(
           vertical: getProportionateScreenHeight(20),
         ),
@@ -442,6 +439,10 @@ class _ChatPageState extends State<ChatPage> {
 
   @override
   Widget build(BuildContext context) {
+    final isDesktop = context.isDesktop;
+    final isTablet = context.isTablet;
+    final maxWidth = isDesktop ? 800.0 : (isTablet ? 700.0 : double.infinity);
+
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
@@ -475,7 +476,7 @@ class _ChatPageState extends State<ChatPage> {
                 widget.otherUserName,
                 style: TextStyle(
                   color: Colors.white,
-                  fontSize: getProportionateScreenHeight(18),
+                  fontSize: isDesktop ? 20 : 18,
                   fontWeight: FontWeight.bold,
                 ),
                 maxLines: 1,
@@ -485,299 +486,308 @@ class _ChatPageState extends State<ChatPage> {
           ],
         ),
       ),
-      body: Column(
-        children: [
-          // Messages List
-          Expanded(
-            child: StreamBuilder<QuerySnapshot>(
-              stream: FirebaseFirestore.instance
-                  .collection('messages')
-                  .where('conversationId', isEqualTo: widget.conversationId)
-                  .orderBy('timestamp', descending: false)
-                  .snapshots()
-                  .handleError((error) {
-                    print(
-                      '═══════════════════════════════════════════════════════════',
-                    );
-                    print('🔴 ERREUR FIRESTORE - INDEX REQUIS (Messages)');
-                    print(
-                      '═══════════════════════════════════════════════════════════',
-                    );
-                    print('');
-                    print('Collection: messages');
-                    print('Champs utilisés:');
-                    print('  - conversationId (where ==)');
-                    print('  - timestamp (orderBy ascending)');
-                    print('');
-                    print('Index requis:');
-                    print('{');
-                    print('  "collectionGroup": "messages",');
-                    print('  "queryScope": "COLLECTION",');
-                    print('  "fields": [');
-                    print(
-                      '    { "fieldPath": "conversationId", "order": "ASCENDING" },',
-                    );
-                    print(
-                      '    { "fieldPath": "timestamp", "order": "ASCENDING" }',
-                    );
-                    print('  ]');
-                    print('}');
-                    print('');
-                    print('📝 Solutions:');
-                    print(
-                      '1. Cliquez sur le lien dans l\'erreur Firebase ci-dessous',
-                    );
-                    print(
-                      '2. Ou ajoutez l\'index manuellement dans Firebase Console',
-                    );
-                    print(
-                      '3. Ou exécutez: firebase deploy --only firestore:indexes --project doctolo',
-                    );
-                    print('');
-                    print('Conversation ID: ${widget.conversationId}');
-                    print('');
-                    print('Erreur complète:');
-                    print(error.toString());
-                    print(
-                      '═══════════════════════════════════════════════════════════',
-                    );
-                  }),
-              builder: (context, snapshot) {
-                if (snapshot.hasError) {
-                  return Center(
-                    child: Padding(
-                      padding: EdgeInsets.all(getProportionateScreenWidth(24)),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Icon(
-                            CupertinoIcons.exclamationmark_triangle,
-                            size: 64,
-                            color: Colors.red,
+      body: Center(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(maxWidth: maxWidth),
+          child: Column(
+            children: [
+              // Messages List
+              Expanded(
+                child: StreamBuilder<QuerySnapshot>(
+                  stream: FirebaseFirestore.instance
+                      .collection('messages')
+                      .where('conversationId', isEqualTo: widget.conversationId)
+                      .orderBy('timestamp', descending: false)
+                      .snapshots()
+                      .handleError((error) {
+                        print(
+                          '═══════════════════════════════════════════════════════════',
+                        );
+                        print('🔴 ERREUR FIRESTORE - INDEX REQUIS (Messages)');
+                        print(
+                          '═══════════════════════════════════════════════════════════',
+                        );
+                        print('');
+                        print('Collection: messages');
+                        print('Champs utilisés:');
+                        print('  - conversationId (where ==)');
+                        print('  - timestamp (orderBy ascending)');
+                        print('');
+                        print('Index requis:');
+                        print('{');
+                        print('  "collectionGroup": "messages",');
+                        print('  "queryScope": "COLLECTION",');
+                        print('  "fields": [');
+                        print(
+                          '    { "fieldPath": "conversationId", "order": "ASCENDING" },',
+                        );
+                        print(
+                          '    { "fieldPath": "timestamp", "order": "ASCENDING" }',
+                        );
+                        print('  ]');
+                        print('}');
+                        print('');
+                        print('📝 Solutions:');
+                        print(
+                          '1. Cliquez sur le lien dans l\'erreur Firebase ci-dessous',
+                        );
+                        print(
+                          '2. Ou ajoutez l\'index manuellement dans Firebase Console',
+                        );
+                        print(
+                          '3. Ou exécutez: firebase deploy --only firestore:indexes --project doctolo',
+                        );
+                        print('');
+                        print('Conversation ID: ${widget.conversationId}');
+                        print('');
+                        print('Erreur complète:');
+                        print(error.toString());
+                        print(
+                          '═══════════════════════════════════════════════════════════',
+                        );
+                      }),
+                  builder: (context, snapshot) {
+                    if (snapshot.hasError) {
+                      return Center(
+                        child: Padding(
+                          padding: EdgeInsets.all(
+                            getProportionateScreenWidth(24),
                           ),
-                          const SizedBox(height: 16),
-                          Text(
-                            'Erreur de chargement',
-                            style: TextStyle(
-                              fontSize: getProportionateScreenHeight(18),
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            'Index Firestore requis',
-                            style: TextStyle(
-                              fontSize: getProportionateScreenHeight(14),
-                              color: AppColors.textSecondary,
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-                          Container(
-                            padding: EdgeInsets.all(
-                              getProportionateScreenWidth(16),
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.orange.withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: Colors.orange),
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const Row(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Icon(
+                                CupertinoIcons.exclamationmark_triangle,
+                                size: 64,
+                                color: Colors.red,
+                              ),
+                              const SizedBox(height: 16),
+                              Text(
+                                'Erreur de chargement',
+                                style: TextStyle(
+                                  fontSize: getProportionateScreenHeight(18),
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                'Index Firestore requis',
+                                style: TextStyle(
+                                  fontSize: getProportionateScreenHeight(14),
+                                  color: AppColors.textSecondary,
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+                              Container(
+                                padding: EdgeInsets.all(
+                                  getProportionateScreenWidth(16),
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.orange.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(color: Colors.orange),
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Icon(
-                                      CupertinoIcons.info_circle,
-                                      color: Colors.orange,
-                                      size: 20,
+                                    const Row(
+                                      children: [
+                                        Icon(
+                                          CupertinoIcons.info_circle,
+                                          color: Colors.orange,
+                                          size: 20,
+                                        ),
+                                        SizedBox(width: 8),
+                                        Text(
+                                          'Consultez la console',
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.orange,
+                                          ),
+                                        ),
+                                      ],
                                     ),
-                                    SizedBox(width: 8),
+                                    const SizedBox(height: 8),
                                     Text(
-                                      'Consultez la console',
+                                      'Un print avec le lien Firebase pour créer l\'index a été affiché. Copiez et collez le lien dans votre navigateur.',
                                       style: TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        color: Colors.orange,
+                                        fontSize: getProportionateScreenHeight(
+                                          12,
+                                        ),
+                                        color: AppColors.textSecondary,
                                       ),
                                     ),
                                   ],
                                 ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  'Un print avec le lien Firebase pour créer l\'index a été affiché. Copiez et collez le lien dans votre navigateur.',
-                                  style: TextStyle(
-                                    fontSize: getProportionateScreenHeight(12),
-                                    color: AppColors.textSecondary,
-                                  ),
-                                ),
-                              ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    }
+
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+
+                    if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                      return Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              CupertinoIcons.chat_bubble_2,
+                              size: 80,
+                              color: AppColors.textSecondary.withOpacity(0.5),
                             ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
-                }
-
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-
-                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                  return Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          CupertinoIcons.chat_bubble_2,
-                          size: 80,
-                          color: AppColors.textSecondary.withOpacity(0.5),
+                            const SizedBox(height: 16),
+                            Text(
+                              'Aucun message',
+                              style: TextStyle(
+                                fontSize: getProportionateScreenHeight(18),
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.textSecondary,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Commencez la conversation',
+                              style: TextStyle(
+                                fontSize: getProportionateScreenHeight(14),
+                                color: AppColors.textSecondary.withOpacity(0.7),
+                              ),
+                            ),
+                          ],
                         ),
-                        const SizedBox(height: 16),
-                        Text(
-                          'Aucun message',
-                          style: TextStyle(
-                            fontSize: getProportionateScreenHeight(18),
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.textSecondary,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Commencez la conversation',
-                          style: TextStyle(
-                            fontSize: getProportionateScreenHeight(14),
-                            color: AppColors.textSecondary.withOpacity(0.7),
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
-                }
+                      );
+                    }
 
-                final messages = snapshot.data!.docs
-                    .map((doc) => MessageModel.fromFirestore(doc))
-                    .toList();
+                    final messages = snapshot.data!.docs
+                        .map((doc) => MessageModel.fromFirestore(doc))
+                        .toList();
 
-                WidgetsBinding.instance.addPostFrameCallback((_) {
-                  if (_scrollController.hasClients) {
-                    _scrollController.jumpTo(
-                      _scrollController.position.maxScrollExtent,
-                    );
-                  }
-                });
-
-                return ListView.builder(
-                  controller: _scrollController,
-                  padding: EdgeInsets.all(getProportionateScreenWidth(16)),
-                  itemCount: messages.length,
-                  itemBuilder: (context, index) {
-                    final message = messages[index];
-                    final isMe =
-                        message.senderId ==
-                        FirebaseAuth.instance.currentUser?.uid;
-                    final showDate =
-                        index == 0 ||
-                        !_isSameDay(
-                          message.timestamp,
-                          messages[index - 1].timestamp,
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      if (_scrollController.hasClients) {
+                        _scrollController.jumpTo(
+                          _scrollController.position.maxScrollExtent,
                         );
+                      }
+                    });
 
-                    return Column(
-                      children: [
-                        if (showDate) _buildDateDivider(message.timestamp),
-                        _MessageBubble(message: message, isMe: isMe),
-                      ],
+                    return ListView.builder(
+                      controller: _scrollController,
+                      padding: EdgeInsets.all(getProportionateScreenWidth(16)),
+                      itemCount: messages.length,
+                      itemBuilder: (context, index) {
+                        final message = messages[index];
+                        final isMe =
+                            message.senderId ==
+                            FirebaseAuth.instance.currentUser?.uid;
+                        final showDate =
+                            index == 0 ||
+                            !_isSameDay(
+                              message.timestamp,
+                              messages[index - 1].timestamp,
+                            );
+
+                        return Column(
+                          children: [
+                            if (showDate) _buildDateDivider(message.timestamp),
+                            _MessageBubble(message: message, isMe: isMe),
+                          ],
+                        );
+                      },
                     );
                   },
-                );
-              },
-            ),
-          ),
-
-          // Upload indicator
-          if (_isUploading)
-            Container(
-              padding: EdgeInsets.all(getProportionateScreenWidth(12)),
-              color: Colors.blue.withOpacity(0.1),
-              child: const Row(
-                children: [
-                  SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  ),
-                  SizedBox(width: 12),
-                  Text('Envoi en cours...'),
-                ],
-              ),
-            ),
-
-          // Input Area
-          Container(
-            decoration: BoxDecoration(
-              color: Colors.white,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
-                  blurRadius: 10,
-                  offset: const Offset(0, -2),
                 ),
-              ],
-            ),
-            padding: EdgeInsets.symmetric(
-              horizontal: getProportionateScreenWidth(8),
-              vertical: getProportionateScreenHeight(8),
-            ),
-            child: SafeArea(
-              child: Row(
-                children: [
-                  // Attachment button
-                  IconButton(
-                    icon: Icon(
-                      CupertinoIcons.paperclip,
-                      color: AppColors.primary,
-                    ),
-                    onPressed: _showAttachmentOptions,
-                  ),
+              ),
 
-                  // Text field
-                  Expanded(
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: AppColors.background,
-                        borderRadius: BorderRadius.circular(24),
+              // Upload indicator
+              if (_isUploading)
+                Container(
+                  padding: EdgeInsets.all(getProportionateScreenWidth(12)),
+                  color: Colors.blue.withOpacity(0.1),
+                  child: const Row(
+                    children: [
+                      SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
                       ),
-                      child: TextField(
-                        controller: _messageController,
-                        decoration: const InputDecoration(
-                          hintText: 'Votre message...',
-                          border: InputBorder.none,
-                          contentPadding: EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 10,
+                      SizedBox(width: 12),
+                      Text('Envoi en cours...'),
+                    ],
+                  ),
+                ),
+
+              // Input Area
+              Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.05),
+                      blurRadius: 10,
+                      offset: const Offset(0, -2),
+                    ),
+                  ],
+                ),
+                padding: EdgeInsets.symmetric(
+                  horizontal: getProportionateScreenWidth(8),
+                  vertical: getProportionateScreenHeight(8),
+                ),
+                child: SafeArea(
+                  child: Row(
+                    children: [
+                      // Attachment button
+                      IconButton(
+                        icon: Icon(
+                          CupertinoIcons.paperclip,
+                          color: AppColors.primary,
+                        ),
+                        onPressed: _showAttachmentOptions,
+                      ),
+
+                      // Text field
+                      Expanded(
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: AppColors.background,
+                            borderRadius: BorderRadius.circular(24),
+                          ),
+                          child: TextField(
+                            controller: _messageController,
+                            decoration: const InputDecoration(
+                              hintText: 'Votre message...',
+                              border: InputBorder.none,
+                              contentPadding: EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 10,
+                              ),
+                            ),
+                            maxLines: null,
+                            textCapitalization: TextCapitalization.sentences,
                           ),
                         ),
-                        maxLines: null,
-                        textCapitalization: TextCapitalization.sentences,
                       ),
-                    ),
-                  ),
 
-                  // Send button
-                  IconButton(
-                    icon: Icon(
-                      CupertinoIcons.arrow_up_circle_fill,
-                      color: AppColors.primary,
-                      size: 32,
-                    ),
-                    onPressed: () =>
-                        _sendMessage(content: _messageController.text),
+                      // Send button
+                      IconButton(
+                        icon: Icon(
+                          CupertinoIcons.arrow_up_circle_fill,
+                          color: AppColors.primary,
+                          size: 32,
+                        ),
+                        onPressed: () =>
+                            _sendMessage(content: _messageController.text),
+                      ),
+                    ],
                   ),
-                ],
+                ),
               ),
-            ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }

@@ -123,18 +123,18 @@ class ResponsiveRow extends StatelessWidget {
   }
 }
 
-extension ResponsiveExtensions on BuildContext {
-  bool get isMobile => ResponsiveLayout.isMobile(this);
-  bool get isTablet => ResponsiveLayout.isTablet(this);
-  bool get isDesktop => ResponsiveLayout.isDesktop(this);
+extension ResponsiveLayoutExtensions on BuildContext {
+  bool get isLayoutMobile => ResponsiveLayout.isMobile(this);
+  bool get isLayoutTablet => ResponsiveLayout.isTablet(this);
+  bool get isLayoutDesktop => ResponsiveLayout.isDesktop(this);
 
   double responsiveValue({
     required double mobile,
     double? tablet,
     double? desktop,
   }) {
-    if (isDesktop) return desktop ?? tablet ?? mobile;
-    if (isTablet) return tablet ?? mobile;
+    if (isLayoutDesktop) return desktop ?? tablet ?? mobile;
+    if (isLayoutTablet) return tablet ?? mobile;
     return mobile;
   }
 }

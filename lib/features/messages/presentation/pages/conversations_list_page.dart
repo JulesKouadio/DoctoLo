@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/size_config.dart';
+import '../../../../core/utils/responsive.dart';
 import '../../../../data/models/message_model.dart';
 import 'chat_page.dart';
 import 'search_doctors_page.dart';
@@ -77,242 +78,264 @@ class _ConversationsListPageState extends State<ConversationsListPage> {
 
   @override
   Widget build(BuildContext context) {
+    final deviceType = context.deviceType;
+
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: CustomScrollView(
-        slivers: [
-          // App Bar
-          SliverAppBar(
-            floating: true,
-            pinned: true,
-            elevation: 0,
-            backgroundColor: AppColors.primary,
-            title: Text(
-              'Messages',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: getProportionateScreenHeight(20),
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            actions: [
-              if (!widget.isDoctor)
-                IconButton(
-                  icon: const Icon(CupertinoIcons.search, color: Colors.white),
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const SearchDoctorsPage(),
-                      ),
-                    );
-                  },
+      body: Center(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxWidth: deviceType == DeviceType.desktop
+                ? 900
+                : deviceType == DeviceType.tablet
+                ? 700
+                : double.infinity,
+          ),
+          child: CustomScrollView(
+            slivers: [
+              // App Bar
+              SliverAppBar(
+                floating: true,
+                pinned: true,
+                elevation: 0,
+                backgroundColor: AppColors.primary,
+                title: Text(
+                  'Messages',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: getProportionateScreenHeight(20),
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
-            ],
-          ),
-
-          // Search Bar
-          SliverToBoxAdapter(
-            child: Container(
-              color: Colors.white,
-              padding: EdgeInsets.all(getProportionateScreenWidth(16)),
-              child: CupertinoSearchTextField(
-                controller: _searchController,
-                placeholder: 'Rechercher une conversation...',
-                onChanged: (value) {
-                  setState(() {
-                    _searchQuery = value.toLowerCase();
-                  });
-                },
+                actions: [
+                  if (!widget.isDoctor)
+                    IconButton(
+                      icon: const Icon(
+                        CupertinoIcons.search,
+                        color: Colors.white,
+                      ),
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const SearchDoctorsPage(),
+                          ),
+                        );
+                      },
+                    ),
+                ],
               ),
-            ),
-          ),
 
-          // Conversations List
-          StreamBuilder<QuerySnapshot>(
-            stream: _getConversationsStream(),
-            builder: (context, snapshot) {
-              if (snapshot.hasError) {
-                return SliverFillRemaining(
-                  child: Center(
-                    child: Padding(
-                      padding: EdgeInsets.all(getProportionateScreenWidth(24)),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Icon(
-                            CupertinoIcons.exclamationmark_triangle,
-                            size: 64,
-                            color: Colors.red,
+              // Search Bar
+              SliverToBoxAdapter(
+                child: Container(
+                  color: Colors.white,
+                  padding: EdgeInsets.all(getProportionateScreenWidth(16)),
+                  child: CupertinoSearchTextField(
+                    controller: _searchController,
+                    placeholder: 'Rechercher une conversation...',
+                    onChanged: (value) {
+                      setState(() {
+                        _searchQuery = value.toLowerCase();
+                      });
+                    },
+                  ),
+                ),
+              ),
+
+              // Conversations List
+              StreamBuilder<QuerySnapshot>(
+                stream: _getConversationsStream(),
+                builder: (context, snapshot) {
+                  if (snapshot.hasError) {
+                    return SliverFillRemaining(
+                      child: Center(
+                        child: Padding(
+                          padding: EdgeInsets.all(
+                            getProportionateScreenWidth(24),
                           ),
-                          const SizedBox(height: 16),
-                          Text(
-                            'Erreur de chargement',
-                            style: TextStyle(
-                              fontSize: getProportionateScreenHeight(18),
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            'Index Firestore requis',
-                            style: TextStyle(
-                              fontSize: getProportionateScreenHeight(14),
-                              color: AppColors.textSecondary,
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-                          Container(
-                            padding: EdgeInsets.all(getProportionateScreenWidth(16)),
-                            decoration: BoxDecoration(
-                              color: Colors.orange.withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: Colors.orange),
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const Row(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Icon(
+                                CupertinoIcons.exclamationmark_triangle,
+                                size: 64,
+                                color: Colors.red,
+                              ),
+                              const SizedBox(height: 16),
+                              Text(
+                                'Erreur de chargement',
+                                style: TextStyle(
+                                  fontSize: getProportionateScreenHeight(18),
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                'Index Firestore requis',
+                                style: TextStyle(
+                                  fontSize: getProportionateScreenHeight(14),
+                                  color: AppColors.textSecondary,
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+                              Container(
+                                padding: EdgeInsets.all(
+                                  getProportionateScreenWidth(16),
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.orange.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(color: Colors.orange),
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Icon(
-                                      CupertinoIcons.info_circle,
-                                      color: Colors.orange,
-                                      size: 20,
+                                    const Row(
+                                      children: [
+                                        Icon(
+                                          CupertinoIcons.info_circle,
+                                          color: Colors.orange,
+                                          size: 20,
+                                        ),
+                                        SizedBox(width: 8),
+                                        Text(
+                                          'Consultez la console',
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.orange,
+                                          ),
+                                        ),
+                                      ],
                                     ),
-                                    SizedBox(width: 8),
+                                    const SizedBox(height: 8),
                                     Text(
-                                      'Consultez la console',
+                                      'Un print détaillé avec le lien Firebase pour créer l\'index a été affiché dans la console.',
                                       style: TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        color: Colors.orange,
+                                        fontSize: getProportionateScreenHeight(
+                                          12,
+                                        ),
+                                        color: AppColors.textSecondary,
                                       ),
                                     ),
                                   ],
                                 ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  'Un print détaillé avec le lien Firebase pour créer l\'index a été affiché dans la console.',
-                                  style: TextStyle(
-                                    fontSize: getProportionateScreenHeight(12),
-                                    color: AppColors.textSecondary,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    );
+                  }
+
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const SliverFillRemaining(
+                      child: Center(child: CircularProgressIndicator()),
+                    );
+                  }
+
+                  if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                    return SliverFillRemaining(
+                      child: Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              CupertinoIcons.chat_bubble_2,
+                              size: 80,
+                              color: AppColors.textSecondary.withOpacity(0.5),
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              'Aucune conversation',
+                              style: TextStyle(
+                                fontSize: getProportionateScreenHeight(18),
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.textSecondary,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              widget.isDoctor
+                                  ? 'Vos patients peuvent vous contacter'
+                                  : 'Commencez une conversation avec un docteur',
+                              style: TextStyle(
+                                fontSize: getProportionateScreenHeight(14),
+                                color: AppColors.textSecondary.withOpacity(0.7),
+                              ),
+                            ),
+                            if (!widget.isDoctor) ...[
+                              const SizedBox(height: 24),
+                              ElevatedButton.icon(
+                                onPressed: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) =>
+                                          const SearchDoctorsPage(),
+                                    ),
+                                  );
+                                },
+                                icon: const Icon(CupertinoIcons.search),
+                                label: const Text('Rechercher un docteur'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppColors.primary,
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 24,
+                                    vertical: 12,
                                   ),
                                 ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                );
-              }
-
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return const SliverFillRemaining(
-                  child: Center(child: CircularProgressIndicator()),
-                );
-              }
-
-              if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                return SliverFillRemaining(
-                  child: Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          CupertinoIcons.chat_bubble_2,
-                          size: 80,
-                          color: AppColors.textSecondary.withOpacity(0.5),
+                              ),
+                            ],
+                          ],
                         ),
-                        const SizedBox(height: 16),
-                        Text(
-                          'Aucune conversation',
+                      ),
+                    );
+                  }
+
+                  final conversations = snapshot.data!.docs
+                      .map((doc) => ConversationModel.fromFirestore(doc))
+                      .where((conv) {
+                        if (_searchQuery.isEmpty) return true;
+                        final currentUserId =
+                            FirebaseAuth.instance.currentUser?.uid;
+                        final otherInfo = conv.getOtherParticipantInfo(
+                          currentUserId!,
+                        );
+                        final name = (otherInfo['name'] ?? '').toLowerCase();
+                        return name.contains(_searchQuery);
+                      })
+                      .toList();
+
+                  if (conversations.isEmpty) {
+                    return SliverFillRemaining(
+                      child: Center(
+                        child: Text(
+                          'Aucun résultat pour "$_searchQuery"',
                           style: TextStyle(
-                            fontSize: getProportionateScreenHeight(18),
-                            fontWeight: FontWeight.w600,
+                            fontSize: getProportionateScreenHeight(16),
                             color: AppColors.textSecondary,
                           ),
                         ),
-                        const SizedBox(height: 8),
-                        Text(
-                          widget.isDoctor
-                              ? 'Vos patients peuvent vous contacter'
-                              : 'Commencez une conversation avec un docteur',
-                          style: TextStyle(
-                            fontSize: getProportionateScreenHeight(14),
-                            color: AppColors.textSecondary.withOpacity(0.7),
-                          ),
-                        ),
-                        if (!widget.isDoctor) ...[
-                          const SizedBox(height: 24),
-                          ElevatedButton.icon(
-                            onPressed: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) =>
-                                      const SearchDoctorsPage(),
-                                ),
-                              );
-                            },
-                            icon: const Icon(CupertinoIcons.search),
-                            label: const Text('Rechercher un docteur'),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: AppColors.primary,
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 24,
-                                vertical: 12,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                );
-              }
-
-              final conversations = snapshot.data!.docs
-                  .map((doc) => ConversationModel.fromFirestore(doc))
-                  .where((conv) {
-                    if (_searchQuery.isEmpty) return true;
-                    final currentUserId =
-                        FirebaseAuth.instance.currentUser?.uid;
-                    final otherInfo = conv.getOtherParticipantInfo(
-                      currentUserId!,
-                    );
-                    final name = (otherInfo['name'] ?? '').toLowerCase();
-                    return name.contains(_searchQuery);
-                  })
-                  .toList();
-
-              if (conversations.isEmpty) {
-                return SliverFillRemaining(
-                  child: Center(
-                    child: Text(
-                      'Aucun résultat pour "$_searchQuery"',
-                      style: TextStyle(
-                        fontSize: getProportionateScreenHeight(16),
-                        color: AppColors.textSecondary,
                       ),
-                    ),
-                  ),
-                );
-              }
+                    );
+                  }
 
-              return SliverList(
-                delegate: SliverChildBuilderDelegate((context, index) {
-                  final conversation = conversations[index];
-                  return _ConversationTile(
-                    conversation: conversation,
-                    isDoctor: widget.isDoctor,
+                  return SliverList(
+                    delegate: SliverChildBuilderDelegate((context, index) {
+                      final conversation = conversations[index];
+                      return _ConversationTile(
+                        conversation: conversation,
+                        isDoctor: widget.isDoctor,
+                      );
+                    }, childCount: conversations.length),
                   );
-                }, childCount: conversations.length),
-              );
-            },
+                },
+              ),
+            ],
           ),
-        ],
+        ),
       ),
       floatingActionButton: widget.isDoctor
           ? null
@@ -403,7 +426,10 @@ class _ConversationTile extends StatelessWidget {
             );
           },
           child: Padding(
-            padding: EdgeInsets.symmetric(horizontal: getProportionateScreenWidth(16), vertical: getProportionateScreenHeight(12)),
+            padding: EdgeInsets.symmetric(
+              horizontal: getProportionateScreenWidth(16),
+              vertical: getProportionateScreenHeight(12),
+            ),
             child: Row(
               children: [
                 // Avatar
@@ -439,7 +465,9 @@ class _ConversationTile extends StatelessWidget {
                         right: 0,
                         top: 0,
                         child: Container(
-                          padding: EdgeInsets.all(getProportionateScreenWidth(4)),
+                          padding: EdgeInsets.all(
+                            getProportionateScreenWidth(4),
+                          ),
                           decoration: const BoxDecoration(
                             color: Colors.red,
                             shape: BoxShape.circle,

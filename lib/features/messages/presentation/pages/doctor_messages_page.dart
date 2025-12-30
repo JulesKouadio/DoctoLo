@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/size_config.dart';
+import '../../../../core/utils/responsive.dart';
 import '../../../../data/models/message_model.dart';
 import 'chat_page.dart';
 import 'search_patients_page.dart';
@@ -35,80 +36,89 @@ class _DoctorMessagesPageState extends State<DoctorMessagesPage>
 
   @override
   Widget build(BuildContext context) {
+    final isDesktop = context.isDesktop;
+    final isTablet = context.isTablet;
+    final maxWidth = isDesktop ? 900.0 : (isTablet ? 700.0 : double.infinity);
+
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: Column(
-        children: [
-          // App Bar
-          Container(
-            color: AppColors.primary,
-            child: SafeArea(
-              bottom: false,
-              child: Column(
-                children: [
-                  Padding(
-                    padding: EdgeInsets.all(getProportionateScreenWidth(16)),
-                    child: Row(
-                      children: [
-                        Text(
-                          'Messages',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: getProportionateScreenHeight(20),
+      body: Center(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(maxWidth: maxWidth),
+          child: Column(
+            children: [
+              // App Bar
+              Container(
+                color: AppColors.primary,
+                child: SafeArea(
+                  bottom: false,
+                  child: Column(
+                    children: [
+                      Padding(
+                        padding: EdgeInsets.all(isDesktop ? 24 : 16),
+                        child: Row(
+                          children: [
+                            Text(
+                              'Messages',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: isDesktop ? 22 : 20,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const Spacer(),
+                            IconButton(
+                              icon: const Icon(
+                                CupertinoIcons.search,
+                                color: Colors.white,
+                              ),
+                              onPressed: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) =>
+                                        const SearchPatientsPage(),
+                                  ),
+                                );
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
+                      // Tabs
+                      Container(
+                        color: AppColors.primary,
+                        child: TabBar(
+                          controller: _tabController,
+                          indicatorColor: Colors.white,
+                          indicatorWeight: 3,
+                          labelColor: Colors.white,
+                          unselectedLabelColor: Colors.white.withOpacity(0.6),
+                          labelStyle: TextStyle(
+                            fontSize: isDesktop ? 18 : 16,
                             fontWeight: FontWeight.bold,
                           ),
+                          tabs: const [
+                            Tab(text: 'Conversations'),
+                            Tab(text: 'Patients récents'),
+                          ],
                         ),
-                        const Spacer(),
-                        IconButton(
-                          icon: const Icon(
-                            CupertinoIcons.search,
-                            color: Colors.white,
-                          ),
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) =>
-                                    const SearchPatientsPage(),
-                              ),
-                            );
-                          },
-                        ),
-                      ],
-                    ),
-                  ),
-                  // Tabs
-                  Container(
-                    color: AppColors.primary,
-                    child: TabBar(
-                      controller: _tabController,
-                      indicatorColor: Colors.white,
-                      indicatorWeight: 3,
-                      labelColor: Colors.white,
-                      unselectedLabelColor: Colors.white.withOpacity(0.6),
-                      labelStyle: TextStyle(
-                        fontSize: getProportionateScreenHeight(16),
-                        fontWeight: FontWeight.bold,
                       ),
-                      tabs: const [
-                        Tab(text: 'Conversations'),
-                        Tab(text: 'Patients récents'),
-                      ],
-                    ),
+                    ],
                   ),
-                ],
+                ),
               ),
-            ),
-          ),
 
-          // Content
-          Expanded(
-            child: TabBarView(
-              controller: _tabController,
-              children: const [_ConversationsTab(), _RecentPatientsTab()],
-            ),
+              // Content
+              Expanded(
+                child: TabBarView(
+                  controller: _tabController,
+                  children: const [_ConversationsTab(), _RecentPatientsTab()],
+                ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {

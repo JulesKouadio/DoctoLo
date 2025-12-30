@@ -3,7 +3,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../bloc/auth_bloc.dart';
 import '../../../../core/theme/app_colors.dart';
-import '../../../../core/utils/size_config.dart';
+import '../../../../core/utils/responsive.dart';
 import '../../../../core/l10n/app_localizations.dart';
 
 class ForgotPasswordPage extends StatefulWidget {
@@ -74,111 +74,180 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
         },
         builder: (context, state) {
           final isLoading = state is AuthLoading;
+          final deviceType = context.deviceType;
+          final adaptive = AdaptiveValues(context);
 
           return SafeArea(
-            child: SingleChildScrollView(
-              padding: EdgeInsets.all(getProportionateScreenWidth(24.0)),
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    // Icon
-                    Container(
-                      height: 80,
-                      width: 80,
-                      decoration: BoxDecoration(
-                        color: AppColors.primary.withOpacity(0.1),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(
-                        CupertinoIcons.lock_rotation,
-                        size: 40,
-                        color: AppColors.primary,
-                      ),
+            child: Center(
+              child: SingleChildScrollView(
+                padding: EdgeInsets.all(
+                  adaptive.spacing(mobile: 24, tablet: 32, desktop: 48),
+                ),
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(
+                      maxWidth: adaptive.maxFormWidth,
                     ),
-                    const SizedBox(height: 24),
-
-                    // Title
-                    Text(
-                      l10n.forgotPassword,
-                      style: Theme.of(context).textTheme.displaySmall?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.primary,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      l10n.checkYourEmail,
-                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                    const SizedBox(height: 32),
-
-                    // Email Field
-                    TextFormField(
-                      controller: _emailController,
-                      keyboardType: TextInputType.emailAddress,
-                      textInputAction: TextInputAction.done,
-                      onFieldSubmitted: (_) => _handleResetPassword(),
-                      decoration: InputDecoration(
-                        labelText: l10n.email,
-                        hintText: 'exemple@email.com',
-                        prefixIcon: const Icon(CupertinoIcons.mail),
-                      ),
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return l10n.email;
-                        }
-                        if (!RegExp(
-                          r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$',
-                        ).hasMatch(value)) {
-                          return l10n.email;
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 24),
-
-                    // Reset Button
-                    ElevatedButton(
-                      onPressed: isLoading ? null : _handleResetPassword,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primary,
-                        foregroundColor: Colors.white,
-                        padding: EdgeInsets.symmetric(vertical: getProportionateScreenHeight(16)),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      child: isLoading
-                          ? const SizedBox(
-                              height: 20,
-                              width: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                valueColor: AlwaysStoppedAnimation<Color>(
-                                  Colors.white,
-                                ),
+                    child: Form(
+                      key: _formKey,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          // Icon
+                          Center(
+                            child: Container(
+                              height: deviceType == DeviceType.desktop
+                                  ? 100
+                                  : 80,
+                              width: deviceType == DeviceType.desktop
+                                  ? 100
+                                  : 80,
+                              decoration: BoxDecoration(
+                                color: AppColors.primary.withOpacity(0.1),
+                                shape: BoxShape.circle,
                               ),
-                            )
-                          : Text(
-                              l10n.forgotPassword,
-                              style: TextStyle(
-                                fontSize: getProportionateScreenHeight(16),
-                                fontWeight: FontWeight.w600,
+                              child: Icon(
+                                CupertinoIcons.lock_rotation,
+                                size: deviceType == DeviceType.desktop
+                                    ? 50
+                                    : 40,
+                                color: AppColors.primary,
                               ),
                             ),
-                    ),
-                    const SizedBox(height: 16),
+                          ),
+                          SizedBox(
+                            height: adaptive.spacing(mobile: 24, desktop: 32),
+                          ),
 
-                    // Back to Login
-                    TextButton(
-                      onPressed: () => Navigator.pop(context),
-                      child: Text(l10n.back),
+                          // Title
+                          Text(
+                            l10n.forgotPassword,
+                            style: Theme.of(context).textTheme.displaySmall
+                                ?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.primary,
+                                  fontSize: deviceType == DeviceType.desktop
+                                      ? 32
+                                      : null,
+                                ),
+                            textAlign: TextAlign.center,
+                          ),
+                          SizedBox(
+                            height: adaptive.spacing(mobile: 8, desktop: 12),
+                          ),
+                          Text(
+                            l10n.checkYourEmail,
+                            style: Theme.of(context).textTheme.bodyLarge
+                                ?.copyWith(
+                                  color: AppColors.textSecondary,
+                                  fontSize: deviceType == DeviceType.desktop
+                                      ? 18
+                                      : null,
+                                ),
+                            textAlign: TextAlign.center,
+                          ),
+                          SizedBox(
+                            height: adaptive.spacing(mobile: 32, desktop: 48),
+                          ),
+
+                          // Email Field
+                          TextFormField(
+                            controller: _emailController,
+                            keyboardType: TextInputType.emailAddress,
+                            textInputAction: TextInputAction.done,
+                            onFieldSubmitted: (_) => _handleResetPassword(),
+                            style: TextStyle(
+                              fontSize: deviceType == DeviceType.desktop
+                                  ? 16
+                                  : 14,
+                            ),
+                            decoration: InputDecoration(
+                              labelText: l10n.email,
+                              hintText: 'exemple@email.com',
+                              prefixIcon: const Icon(CupertinoIcons.mail),
+                              contentPadding: EdgeInsets.symmetric(
+                                vertical: deviceType == DeviceType.desktop
+                                    ? 20
+                                    : 16,
+                                horizontal: 16,
+                              ),
+                            ),
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return l10n.email;
+                              }
+                              if (!RegExp(
+                                r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$',
+                              ).hasMatch(value)) {
+                                return l10n.email;
+                              }
+                              return null;
+                            },
+                          ),
+                          SizedBox(
+                            height: adaptive.spacing(mobile: 24, desktop: 32),
+                          ),
+
+                          // Reset Button
+                          ElevatedButton(
+                            onPressed: isLoading ? null : _handleResetPassword,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.primary,
+                              foregroundColor: Colors.white,
+                              padding: EdgeInsets.symmetric(
+                                vertical: deviceType == DeviceType.desktop
+                                    ? 18
+                                    : 16,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                            child: isLoading
+                                ? SizedBox(
+                                    height: deviceType == DeviceType.desktop
+                                        ? 22
+                                        : 20,
+                                    width: deviceType == DeviceType.desktop
+                                        ? 22
+                                        : 20,
+                                    child: const CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      valueColor: AlwaysStoppedAnimation<Color>(
+                                        Colors.white,
+                                      ),
+                                    ),
+                                  )
+                                : Text(
+                                    l10n.forgotPassword,
+                                    style: TextStyle(
+                                      fontSize: deviceType == DeviceType.desktop
+                                          ? 17
+                                          : 16,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                          ),
+                          SizedBox(
+                            height: adaptive.spacing(mobile: 16, desktop: 20),
+                          ),
+
+                          // Back to Login
+                          TextButton(
+                            onPressed: () => Navigator.pop(context),
+                            child: Text(
+                              l10n.back,
+                              style: TextStyle(
+                                fontSize: deviceType == DeviceType.desktop
+                                    ? 16
+                                    : null,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                  ],
+                  ),
                 ),
               ),
             ),

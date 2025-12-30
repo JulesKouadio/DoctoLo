@@ -6,7 +6,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import '../../../../core/theme/app_colors.dart';
-import '../../../../core/utils/size_config.dart';
+import '../../../../core/utils/responsive.dart';
 import '../../../../core/constants/app_constants.dart';
 
 class ProfessionalVerificationPage extends StatefulWidget {
@@ -228,6 +228,9 @@ class _ProfessionalVerificationPageState
 
   @override
   Widget build(BuildContext context) {
+    final deviceType = context.deviceType;
+    final adaptive = AdaptiveValues(context);
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Vérification Professionnelle'),
@@ -235,202 +238,298 @@ class _ProfessionalVerificationPageState
         foregroundColor: AppColors.primary,
         elevation: 0,
       ),
-      body: SingleChildScrollView(
-        padding: EdgeInsets.all(getProportionateScreenWidth(16)),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // Info card
-              Card(
-                color: AppColors.primary,
-                child: Padding(
-                  padding: EdgeInsets.all(getProportionateScreenWidth(16)),
-                  child: Column(
-                    children: [
-                      const Icon(
-                        CupertinoIcons.info_circle,
-                        color: AppColors.primary,
-                        size: 48,
-                      ),
-                      const SizedBox(height: 12),
-                      Text(
-                        'Vérification Obligatoire',
-                        style: TextStyle(
-                          fontSize: getProportionateScreenHeight(18),
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.primary,
+      body: Center(
+        child: SingleChildScrollView(
+          padding: EdgeInsets.all(
+            adaptive.spacing(mobile: 16, tablet: 24, desktop: 32),
+          ),
+          child: Center(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxWidth: deviceType == DeviceType.desktop
+                    ? 600
+                    : deviceType == DeviceType.tablet
+                    ? 550
+                    : double.infinity,
+              ),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    // Info card
+                    Card(
+                      color: AppColors.primary.withOpacity(0.05),
+                      child: Padding(
+                        padding: EdgeInsets.all(
+                          adaptive.spacing(mobile: 16, desktop: 24),
                         ),
+                        child: Column(
+                          children: [
+                            Icon(
+                              CupertinoIcons.info_circle,
+                              color: AppColors.primary,
+                              size: deviceType == DeviceType.desktop ? 56 : 48,
+                            ),
+                            SizedBox(
+                              height: adaptive.spacing(mobile: 12, desktop: 16),
+                            ),
+                            Text(
+                              'Vérification Obligatoire',
+                              style: TextStyle(
+                                fontSize: deviceType == DeviceType.desktop
+                                    ? 22
+                                    : 18,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.primary,
+                              ),
+                            ),
+                            SizedBox(
+                              height: adaptive.spacing(mobile: 8, desktop: 12),
+                            ),
+                            Text(
+                              'Pour apparaître dans les résultats de recherche, vous devez fournir :',
+                              style: TextStyle(
+                                color: Colors.grey[700],
+                                fontSize: deviceType == DeviceType.desktop
+                                    ? 16
+                                    : 14,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                            SizedBox(
+                              height: adaptive.spacing(mobile: 12, desktop: 16),
+                            ),
+                            _buildRequirement(
+                              'Identifiant médecin valide',
+                              deviceType,
+                            ),
+                            _buildRequirement(
+                              'Photo recto de votre CNI',
+                              deviceType,
+                            ),
+                            _buildRequirement(
+                              'Photo verso de votre CNI',
+                              deviceType,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    SizedBox(height: adaptive.spacing(mobile: 24, desktop: 32)),
+
+                    // Identifiant médecin
+                    TextFormField(
+                      controller: _medicalIdController,
+                      style: TextStyle(
+                        fontSize: deviceType == DeviceType.desktop ? 16 : 14,
+                      ),
+                      decoration: InputDecoration(
+                        labelText: 'Identifiant Médecin',
+                        hintText: 'Ex: ORD123456',
+                        prefixIcon: const Icon(CupertinoIcons.doc_text),
+                        border: const OutlineInputBorder(),
+                        contentPadding: EdgeInsets.symmetric(
+                          vertical: deviceType == DeviceType.desktop ? 20 : 16,
+                          horizontal: 16,
+                        ),
+                      ),
+                      validator: (value) {
+                        if (value == null || value.trim().isEmpty) {
+                          return 'Identifiant requis';
+                        }
+                        return null;
+                      },
+                    ),
+                    SizedBox(height: adaptive.spacing(mobile: 16, desktop: 20)),
+
+                    // Spécialité
+                    DropdownButtonFormField<String>(
+                      value: _selectedSpecialty,
+                      style: TextStyle(
+                        fontSize: deviceType == DeviceType.desktop ? 16 : 14,
+                        color: Colors.black,
+                      ),
+                      decoration: InputDecoration(
+                        labelText: 'Spécialité',
+                        prefixIcon: const Icon(CupertinoIcons.heart),
+                        border: const OutlineInputBorder(),
+                        contentPadding: EdgeInsets.symmetric(
+                          vertical: deviceType == DeviceType.desktop ? 20 : 16,
+                          horizontal: 16,
+                        ),
+                      ),
+                      items: AppConstants.medicalSpecialties.map((specialty) {
+                        return DropdownMenuItem(
+                          value: specialty,
+                          child: Text(specialty),
+                        );
+                      }).toList(),
+                      onChanged: (value) {
+                        setState(() => _selectedSpecialty = value);
+                      },
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Spécialité requise';
+                        }
+                        return null;
+                      },
+                    ),
+                    SizedBox(height: adaptive.spacing(mobile: 24, desktop: 32)),
+
+                    // CNI Photos en Row sur desktop/tablet
+                    if (deviceType != DeviceType.mobile) ...[
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Photo CNI Recto',
+                                  style: Theme.of(context).textTheme.titleMedium
+                                      ?.copyWith(
+                                        fontSize:
+                                            deviceType == DeviceType.desktop
+                                            ? 18
+                                            : 16,
+                                      ),
+                                ),
+                                const SizedBox(height: 8),
+                                _buildImagePicker(
+                                  true,
+                                  _cniRectoImage,
+                                  deviceType,
+                                ),
+                              ],
+                            ),
+                          ),
+                          SizedBox(
+                            width: adaptive.spacing(mobile: 16, desktop: 24),
+                          ),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Photo CNI Verso',
+                                  style: Theme.of(context).textTheme.titleMedium
+                                      ?.copyWith(
+                                        fontSize:
+                                            deviceType == DeviceType.desktop
+                                            ? 18
+                                            : 16,
+                                      ),
+                                ),
+                                const SizedBox(height: 8),
+                                _buildImagePicker(
+                                  false,
+                                  _cniVersoImage,
+                                  deviceType,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ] else ...[
+                      // CNI Recto
+                      Text(
+                        'Photo CNI Recto',
+                        style: Theme.of(context).textTheme.titleMedium,
                       ),
                       const SizedBox(height: 8),
+                      _buildImagePicker(true, _cniRectoImage, deviceType),
+                      const SizedBox(height: 16),
+
+                      // CNI Verso
                       Text(
-                        'Pour apparaître dans les résultats de recherche, vous devez fournir :',
-                        style: TextStyle(color: Colors.grey[700]),
-                        textAlign: TextAlign.center,
+                        'Photo CNI Verso',
+                        style: Theme.of(context).textTheme.titleMedium,
                       ),
-                      const SizedBox(height: 12),
-                      _buildRequirement('Identifiant médecin valide'),
-                      _buildRequirement('Photo recto de votre CNI'),
-                      _buildRequirement('Photo verso de votre CNI'),
-                      // _buildRequirement('Email vérifié'),
+                      const SizedBox(height: 8),
+                      _buildImagePicker(false, _cniVersoImage, deviceType),
                     ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 24),
+                    SizedBox(height: adaptive.spacing(mobile: 32, desktop: 40)),
 
-              // Email verification
-              // Card(
-              //   child: ListTile(
-              //     leading: Icon(
-              //       _emailVerified
-              //           ? CupertinoIcons.check_mark_circled_solid
-              //           : CupertinoIcons.exclamationmark_circle,
-              //       color: _emailVerified
-              //           ? AppColors.success
-              //           : AppColors.warning,
-              //     ),
-              //     title: Text(
-              //       _emailVerified ? 'Email vérifié' : 'Email non vérifié',
-              //     ),
-              //     subtitle: _emailVerified
-              //         ? null
-              //         : const Text('Cliquez pour renvoyer l\'email'),
-              //     trailing: _emailVerified
-              //         ? null
-              //         : TextButton(
-              //             onPressed: _sendVerificationEmail,
-              //             child: const Text('Renvoyer'),
-              //           ),
-              //     onTap: _emailVerified ? null : _checkEmailVerification,
-              //   ),
-              // ),
-              // const SizedBox(height: 16),
-
-              // Identifiant médecin
-              TextFormField(
-                controller: _medicalIdController,
-                decoration: const InputDecoration(
-                  labelText: 'Identifiant Médecin',
-                  hintText: 'Ex: ORD123456',
-                  prefixIcon: Icon(CupertinoIcons.doc_text),
-                  border: OutlineInputBorder(),
-                ),
-                validator: (value) {
-                  if (value == null || value.trim().isEmpty) {
-                    return 'Identifiant requis';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 16),
-
-              // Spécialité
-              DropdownButtonFormField<String>(
-                initialValue: _selectedSpecialty,
-                decoration: const InputDecoration(
-                  labelText: 'Spécialité',
-                  prefixIcon: Icon(CupertinoIcons.heart),
-                  border: OutlineInputBorder(),
-                ),
-                items: AppConstants.medicalSpecialties.map((specialty) {
-                  return DropdownMenuItem(
-                    value: specialty,
-                    child: Text(specialty),
-                  );
-                }).toList(),
-                onChanged: (value) {
-                  setState(() => _selectedSpecialty = value);
-                },
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Spécialité requise';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 24),
-
-              // CNI Recto
-              Text(
-                'Photo CNI Recto',
-                style: Theme.of(context).textTheme.titleMedium,
-              ),
-              const SizedBox(height: 8),
-              _buildImagePicker(true, _cniRectoImage),
-              const SizedBox(height: 16),
-
-              // CNI Verso
-              Text(
-                'Photo CNI Verso',
-                style: Theme.of(context).textTheme.titleMedium,
-              ),
-              const SizedBox(height: 8),
-              _buildImagePicker(false, _cniVersoImage),
-              const SizedBox(height: 32),
-
-              // Submit button
-              ElevatedButton(
-                onPressed: _isSubmitting ? null : _submitVerification,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  padding: EdgeInsets.symmetric(vertical: getProportionateScreenHeight(16)),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                child: _isSubmitting
-                    ? const SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          valueColor: AlwaysStoppedAnimation<Color>(
-                            Colors.white,
-                          ),
+                    // Submit button
+                    ElevatedButton(
+                      onPressed: _isSubmitting ? null : _submitVerification,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        padding: EdgeInsets.symmetric(
+                          vertical: deviceType == DeviceType.desktop ? 18 : 16,
                         ),
-                      )
-                    : Text(
-                        'Soumettre pour vérification',
-                        style: TextStyle(
-                          fontSize: getProportionateScreenHeight(16),
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
                         ),
                       ),
+                      child: _isSubmitting
+                          ? SizedBox(
+                              height: deviceType == DeviceType.desktop
+                                  ? 22
+                                  : 20,
+                              width: deviceType == DeviceType.desktop ? 22 : 20,
+                              child: const CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  Colors.white,
+                                ),
+                              ),
+                            )
+                          : Text(
+                              'Soumettre pour vérification',
+                              style: TextStyle(
+                                fontSize: deviceType == DeviceType.desktop
+                                    ? 17
+                                    : 16,
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                    ),
+                  ],
+                ),
               ),
-            ],
+            ),
           ),
         ),
       ),
     );
   }
 
-  Widget _buildRequirement(String text) {
+  Widget _buildRequirement(String text, DeviceType deviceType) {
     return Padding(
-      padding: EdgeInsets.symmetric(vertical: getProportionateScreenHeight(4)),
+      padding: EdgeInsets.symmetric(
+        vertical: deviceType == DeviceType.desktop ? 6 : 4,
+      ),
       child: Row(
         children: [
-          const Icon(
+          Icon(
             CupertinoIcons.checkmark_circle_fill,
-            size: 16,
+            size: deviceType == DeviceType.desktop ? 20 : 16,
             color: AppColors.success,
           ),
           const SizedBox(width: 8),
           Expanded(
-            child: Text(text, style: TextStyle(color: Colors.grey[700])),
+            child: Text(
+              text,
+              style: TextStyle(
+                color: Colors.grey[700],
+                fontSize: deviceType == DeviceType.desktop ? 15 : 14,
+              ),
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildImagePicker(bool isRecto, File? image) {
+  Widget _buildImagePicker(bool isRecto, File? image, DeviceType deviceType) {
     return GestureDetector(
       onTap: () => _pickImage(isRecto),
       child: Container(
-        height: 180,
+        height: deviceType == DeviceType.desktop ? 220 : 180,
         decoration: BoxDecoration(
           border: Border.all(color: Colors.grey[300]!),
           borderRadius: BorderRadius.circular(12),
@@ -472,15 +571,15 @@ class _ProfessionalVerificationPageState
                 children: [
                   Icon(
                     CupertinoIcons.camera,
-                    size: 48,
+                    size: deviceType == DeviceType.desktop ? 56 : 48,
                     color: Colors.grey[400],
                   ),
-                  const SizedBox(height: 8),
+                  SizedBox(height: deviceType == DeviceType.desktop ? 12 : 8),
                   Text(
                     'Prendre une photo',
                     style: TextStyle(
                       color: Colors.grey[600],
-                      fontSize: getProportionateScreenHeight(16),
+                      fontSize: deviceType == DeviceType.desktop ? 17 : 16,
                     ),
                   ),
                 ],

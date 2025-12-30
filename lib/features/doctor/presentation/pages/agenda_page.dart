@@ -8,6 +8,7 @@ import 'package:uuid/uuid.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/l10n/app_localizations.dart';
 import '../../../../core/utils/size_config.dart';
+import '../../../../core/utils/responsive.dart' hide ResponsiveLayout;
 import '../../../../shared/widgets/responsive_layout.dart';
 import '../../../../shared/widgets/currency_widgets.dart';
 import '../../../appointment/presentation/pages/video_call_page.dart';
@@ -469,203 +470,197 @@ class _AgendaPageState extends State<AgendaPage> {
 
   void _showAppointmentDetails(Map<String, dynamic> appointment) {
     final l10n = AppLocalizations.of(context)!;
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) => DraggableScrollableSheet(
-        initialChildSize: 0.7,
-        minChildSize: 0.5,
-        maxChildSize: 0.9,
-        expand: false,
-        builder: (context, scrollController) {
-          final status = appointment['status'] as String;
-          final type = appointment['type'] as String;
-          final timeSlot = appointment['timeSlot'] as String;
-          final patientName = appointment['patientName'] as String;
-          final reason = appointment['reason'] as String? ?? '';
-          final fee = appointment['fee'] as double;
+    final status = appointment['status'] as String;
+    final type = appointment['type'] as String;
+    final timeSlot = appointment['timeSlot'] as String;
+    final patientName = appointment['patientName'] as String;
+    final reason = appointment['reason'] as String? ?? '';
+    final fee = appointment['fee'] as double;
 
-          return ListView(
-            controller: scrollController,
-            padding: EdgeInsets.all(getProportionateScreenWidth(24)),
-            children: [
-              // Handle
-              Center(
-                child: Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: Colors.grey[300],
-                    borderRadius: BorderRadius.circular(2),
-                  ),
+    showAdaptiveSheet(
+      context: context,
+      initialChildSize: 0.7,
+      minChildSize: 0.5,
+      maxChildSize: 0.9,
+      dialogWidth: 550,
+      builder: (context, scrollController) {
+        return ListView(
+          controller: scrollController,
+          padding: EdgeInsets.all(getProportionateScreenWidth(24)),
+          children: [
+            // Handle
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(2),
                 ),
               ),
-              const SizedBox(height: 24),
+            ),
+            const SizedBox(height: 24),
 
-              // En-tête
+            // En-tête
+            Row(
+              children: [
+                CircleAvatar(
+                  radius: 30,
+                  backgroundColor: AppColors.primary.withOpacity(0.1),
+                  child: Icon(
+                    type == 'telemedicine'
+                        ? CupertinoIcons.videocam_fill
+                        : CupertinoIcons.plus_circle,
+                    color: AppColors.primary,
+                    size: 30,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        patientName,
+                        style: TextStyle(
+                          fontSize: getProportionateScreenHeight(20),
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: _getStatusColor(status).withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          _getStatusLabel(status),
+                          style: TextStyle(
+                            color: _getStatusColor(status),
+                            fontWeight: FontWeight.w600,
+                            fontSize: getProportionateScreenHeight(12),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 32),
+
+            // Détails
+            _DetailRow(
+              icon: CupertinoIcons.calendar,
+              label: 'Date',
+              value: DateFormat(
+                'EEEE d MMMM yyyy',
+                l10n.localeCode,
+              ).format(_selectedDay!),
+            ),
+            _DetailRow(
+              icon: CupertinoIcons.clock,
+              label: 'Heure',
+              value: timeSlot,
+            ),
+            _DetailRow(
+              icon: _getTypeIcon(type),
+              label: 'Type',
+              value: _getTypeLabel(type),
+            ),
+            _DetailRowWithCurrency(
+              icon: CupertinoIcons.money_dollar,
+              label: 'Tarif',
+              amount: fee,
+            ),
+
+            if (reason.isNotEmpty) ...[
+              const SizedBox(height: 16),
+              Text(
+                'Motif de consultation',
+                style: TextStyle(
+                  fontSize: getProportionateScreenHeight(16),
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Container(
+                padding: EdgeInsets.all(getProportionateScreenWidth(12)),
+                decoration: BoxDecoration(
+                  color: Colors.grey[100],
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(reason),
+              ),
+            ],
+
+            const SizedBox(height: 32),
+
+            // Actions
+            if (status == 'pending') ...[
               Row(
                 children: [
-                  CircleAvatar(
-                    radius: 30,
-                    backgroundColor: AppColors.primary.withOpacity(0.1),
-                    child: Icon(
-                      type == 'telemedicine'
-                          ? CupertinoIcons.videocam_fill
-                          : CupertinoIcons.plus_circle,
-                      color: AppColors.primary,
-                      size: 30,
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () {
+                        Navigator.pop(context);
+                        _cancelAppointment(appointment);
+                      },
+                      icon: const Icon(CupertinoIcons.xmark_circle),
+                      label: const Text('Refuser'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.red,
+                        side: const BorderSide(color: Colors.red),
+                        padding: EdgeInsets.symmetric(
+                          vertical: getProportionateScreenHeight(14),
+                        ),
+                      ),
                     ),
                   ),
-                  const SizedBox(width: 16),
+                  const SizedBox(width: 12),
                   Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          patientName,
-                          style: TextStyle(
-                            fontSize: getProportionateScreenHeight(20),
-                            fontWeight: FontWeight.bold,
-                          ),
+                    child: ElevatedButton.icon(
+                      onPressed: () {
+                        Navigator.pop(context);
+                        _confirmAppointment(appointment);
+                      },
+                      icon: const Icon(CupertinoIcons.checkmark_circle),
+                      label: const Text('Confirmer'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green,
+                        foregroundColor: Colors.white,
+                        padding: EdgeInsets.symmetric(
+                          vertical: getProportionateScreenHeight(14),
                         ),
-                        const SizedBox(height: 4),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 4,
-                          ),
-                          decoration: BoxDecoration(
-                            color: _getStatusColor(status).withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Text(
-                            _getStatusLabel(status),
-                            style: TextStyle(
-                              color: _getStatusColor(status),
-                              fontWeight: FontWeight.w600,
-                              fontSize: getProportionateScreenHeight(12),
-                            ),
-                          ),
-                        ),
-                      ],
+                      ),
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 32),
-
-              // Détails
-              _DetailRow(
-                icon: CupertinoIcons.calendar,
-                label: 'Date',
-                value: DateFormat(
-                  'EEEE d MMMM yyyy',
-                  l10n.localeCode,
-                ).format(_selectedDay!),
-              ),
-              _DetailRow(
-                icon: CupertinoIcons.clock,
-                label: 'Heure',
-                value: timeSlot,
-              ),
-              _DetailRow(
-                icon: _getTypeIcon(type),
-                label: 'Type',
-                value: _getTypeLabel(type),
-              ),
-              _DetailRowWithCurrency(
-                icon: CupertinoIcons.money_dollar,
-                label: 'Tarif',
-                amount: fee,
-              ),
-
-              if (reason.isNotEmpty) ...[
-                const SizedBox(height: 16),
-                Text(
-                  'Motif de consultation',
-                  style: TextStyle(
-                    fontSize: getProportionateScreenHeight(16),
-                    fontWeight: FontWeight.bold,
+            ] else if (status == 'confirmed' && _isTelemedicine(type)) ...[
+              ElevatedButton.icon(
+                onPressed: () {
+                  Navigator.pop(context);
+                  _startVideoCall(appointment);
+                },
+                icon: const Icon(CupertinoIcons.videocam),
+                label: const Text('Démarrer la téléconsultation'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                  padding: EdgeInsets.symmetric(
+                    vertical: getProportionateScreenHeight(14),
                   ),
                 ),
-                const SizedBox(height: 8),
-                Container(
-                  padding: EdgeInsets.all(getProportionateScreenWidth(12)),
-                  decoration: BoxDecoration(
-                    color: Colors.grey[100],
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Text(reason),
-                ),
-              ],
-
-              const SizedBox(height: 32),
-
-              // Actions
-              if (status == 'pending') ...[
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: () {
-                          Navigator.pop(context);
-                          _cancelAppointment(appointment);
-                        },
-                        icon: const Icon(CupertinoIcons.xmark_circle),
-                        label: const Text('Refuser'),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: Colors.red,
-                          side: const BorderSide(color: Colors.red),
-                          padding: EdgeInsets.symmetric(
-                            vertical: getProportionateScreenHeight(14),
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: ElevatedButton.icon(
-                        onPressed: () {
-                          Navigator.pop(context);
-                          _confirmAppointment(appointment);
-                        },
-                        icon: const Icon(CupertinoIcons.checkmark_circle),
-                        label: const Text('Confirmer'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.green,
-                          foregroundColor: Colors.white,
-                          padding: EdgeInsets.symmetric(
-                            vertical: getProportionateScreenHeight(14),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ] else if (status == 'confirmed' && _isTelemedicine(type)) ...[
-                ElevatedButton.icon(
-                  onPressed: () {
-                    Navigator.pop(context);
-                    _startVideoCall(appointment);
-                  },
-                  icon: const Icon(CupertinoIcons.videocam),
-                  label: const Text('Démarrer la téléconsultation'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    foregroundColor: Colors.white,
-                    padding: EdgeInsets.symmetric(
-                      vertical: getProportionateScreenHeight(14),
-                    ),
-                  ),
-                ),
-              ],
+              ),
             ],
-          );
-        },
-      ),
+          ],
+        );
+      },
     );
   }
 

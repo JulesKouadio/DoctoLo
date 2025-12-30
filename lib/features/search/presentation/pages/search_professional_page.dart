@@ -5,6 +5,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/l10n/app_localizations.dart';
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/utils/size_config.dart';
+import '../../../../core/utils/responsive.dart';
 import '../../../doctor/presentation/pages/doctor_profile_page.dart';
 
 class SearchProfessionalPage extends StatefulWidget {
@@ -104,6 +105,9 @@ class _SearchProfessionalPageState extends State<SearchProfessionalPage> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
+    final deviceType = context.deviceType;
+    final adaptive = AdaptiveValues(context);
+
     return Scaffold(
       appBar: AppBar(
         title: Text(l10n.searchProfessional),
@@ -111,231 +115,472 @@ class _SearchProfessionalPageState extends State<SearchProfessionalPage> {
         foregroundColor: Colors.black,
         elevation: 0,
       ),
-      body: Column(
-        children: [
-          // Filtres de recherche
-          Container(
-            color: Colors.white,
-            padding: EdgeInsets.all(getProportionateScreenWidth(16)),
-            child: Column(
-              children: [
-                // Barre de recherche
-                TextField(
-                  controller: _searchController,
-                  decoration: InputDecoration(
-                    hintText: 'Nom, spécialité...',
-                    prefixIcon: const Icon(CupertinoIcons.search),
-                    filled: true,
-                    fillColor: Colors.grey[100],
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide.none,
-                    ),
-                  ),
-                  onSubmitted: (_) => _performSearch(),
-                ),
-                const SizedBox(height: 12),
-
-                // Filtre spécialité
-                DropdownButtonFormField<String>(
-                  initialValue: _selectedSpecialty,
-                  decoration: InputDecoration(
-                    labelText: 'Spécialité',
-                    filled: true,
-                    fillColor: Colors.grey[100],
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide.none,
-                    ),
-                  ),
-                  items: ['Toutes', ...AppConstants.medicalSpecialties]
-                      .map(
-                        (specialty) => DropdownMenuItem(
-                          value: specialty,
-                          child: Text(specialty),
-                        ),
-                      )
-                      .toList(),
-                  onChanged: (value) {
-                    setState(() {
-                      _selectedSpecialty = value;
-                    });
-                  },
-                ),
-                const SizedBox(height: 12),
-
-                // Filtre type de consultation
-                DropdownButtonFormField<String>(
-                  initialValue: _selectedConsultationType,
-                  decoration: InputDecoration(
-                    labelText: 'Type de consultation',
-                    filled: true,
-                    fillColor: Colors.grey[100],
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide.none,
-                    ),
-                  ),
-                  items: _consultationTypes
-                      .map(
-                        (type) =>
-                            DropdownMenuItem(value: type, child: Text(type)),
-                      )
-                      .toList(),
-                  onChanged: (value) {
-                    setState(() {
-                      _selectedConsultationType = value;
-                    });
-                  },
-                ),
-                const SizedBox(height: 12),
-
-                // Filtre localité
-                DropdownButtonFormField<String>(
-                  initialValue: _selectedLocation,
-                  decoration: InputDecoration(
-                    labelText: 'Localité',
-                    filled: true,
-                    fillColor: Colors.grey[100],
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide.none,
-                    ),
-                  ),
-                  items:
-                      [
-                            'Toutes',
-                            'Abidjan',
-                            'Bouaké',
-                            'Daloa',
-                            'Yamoussoukro',
-                            'San-Pedro',
-                            'Korhogo',
-                            'Man',
-                          ]
-                          .map(
-                            (location) => DropdownMenuItem(
-                              value: location,
-                              child: Text(location),
-                            ),
-                          )
-                          .toList(),
-                  onChanged: (value) {
-                    setState(() {
-                      _selectedLocation = value;
-                    });
-                  },
-                ),
-                const SizedBox(height: 16),
-
-                // Bouton de recherche
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: _isSearching ? null : _performSearch,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primary,
-                      padding: EdgeInsets.symmetric(
-                        vertical: getProportionateScreenHeight(16),
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    child: _isSearching
-                        ? const SizedBox(
-                            height: 20,
-                            width: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Colors.white,
-                            ),
-                          )
-                        : Text(
-                            'Rechercher',
-                            style: TextStyle(
-                              fontSize: getProportionateScreenHeight(16),
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                            ),
-                          ),
-                  ),
-                ),
-              ],
-            ),
+      body: Center(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxWidth: deviceType == DeviceType.desktop
+                ? 1200
+                : deviceType == DeviceType.tablet
+                ? 900
+                : double.infinity,
           ),
+          child: Column(
+            children: [
+              // Filtres de recherche
+              Container(
+                color: Colors.white,
+                padding: EdgeInsets.all(
+                  adaptive.spacing(mobile: 16, tablet: 20, desktop: 24),
+                ),
+                child: deviceType == DeviceType.desktop
+                    ? _buildDesktopFilters(deviceType, adaptive)
+                    : _buildMobileFilters(deviceType, adaptive),
+              ),
 
-          // Résultats
-          Expanded(
-            child: _isSearching
-                ? const Center(child: CircularProgressIndicator())
-                : _results.isEmpty
-                ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          CupertinoIcons.search,
-                          size: 64,
-                          color: Colors.grey[400],
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          'Aucun résultat',
-                          style: TextStyle(
-                            fontSize: getProportionateScreenHeight(18),
-                            color: Colors.grey[600],
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Essayez de modifier vos critères de recherche',
-                          style: TextStyle(
-                            fontSize: getProportionateScreenHeight(14),
-                            color: Colors.grey[500],
-                          ),
-                        ),
-                      ],
-                    ),
-                  )
-                : ListView.builder(
-                    padding: EdgeInsets.all(getProportionateScreenWidth(16)),
-                    itemCount: _results.length,
-                    itemBuilder: (context, index) {
-                      final result = _results[index];
-                      final user = result['user'] as Map<String, dynamic>;
-                      final doctor = result['doctor'] as Map<String, dynamic>;
-
-                      return _DoctorCard(
-                        name: '${user['firstName']} ${user['lastName']}',
-                        specialty:
-                            doctor['specialty'] ?? 'Spécialité non renseignée',
-                        consultationFee: (doctor['consultationFee'] ?? 0.0)
-                            .toDouble(),
-                        offersTelemedicine:
-                            doctor['offersTelemedicine'] ?? false,
-                        offersPhysicalConsultation:
-                            doctor['offersPhysicalConsultation'] ?? true,
-                        photoUrl: user['photoUrl'],
-                        location: doctor['city'] ?? '',
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => DoctorProfilePage(
-                                userId: result['userId'],
-                                doctorId:
-                                    result['userId'], // Utiliser userId comme doctorId
+              // Résultats
+              Expanded(
+                child: _isSearching
+                    ? const Center(child: CircularProgressIndicator())
+                    : _results.isEmpty
+                    ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              CupertinoIcons.search,
+                              size: deviceType == DeviceType.desktop ? 80 : 64,
+                              color: Colors.grey[400],
+                            ),
+                            SizedBox(
+                              height: adaptive.spacing(mobile: 16, desktop: 20),
+                            ),
+                            Text(
+                              'Aucun résultat',
+                              style: TextStyle(
+                                fontSize: deviceType == DeviceType.desktop
+                                    ? 22
+                                    : 18,
+                                color: Colors.grey[600],
                               ),
                             ),
-                          );
-                        },
-                      );
-                    },
+                            SizedBox(
+                              height: adaptive.spacing(mobile: 8, desktop: 12),
+                            ),
+                            Text(
+                              'Essayez de modifier vos critères de recherche',
+                              style: TextStyle(
+                                fontSize: deviceType == DeviceType.desktop
+                                    ? 16
+                                    : 14,
+                                color: Colors.grey[500],
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                    : _buildResultsList(deviceType, adaptive),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDesktopFilters(DeviceType deviceType, AdaptiveValues adaptive) {
+    return Column(
+      children: [
+        // Première ligne: recherche + spécialité + type
+        Row(
+          children: [
+            Expanded(
+              flex: 2,
+              child: TextField(
+                controller: _searchController,
+                style: TextStyle(
+                  fontSize: deviceType == DeviceType.desktop ? 16 : 14,
+                ),
+                decoration: InputDecoration(
+                  hintText: 'Nom, spécialité...',
+                  prefixIcon: const Icon(CupertinoIcons.search),
+                  filled: true,
+                  fillColor: Colors.grey[100],
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
+                  ),
+                  contentPadding: EdgeInsets.symmetric(
+                    vertical: deviceType == DeviceType.desktop ? 18 : 14,
+                    horizontal: 16,
+                  ),
+                ),
+                onSubmitted: (_) => _performSearch(),
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: DropdownButtonFormField<String>(
+                value: _selectedSpecialty,
+                style: TextStyle(fontSize: 15, color: Colors.black),
+                decoration: InputDecoration(
+                  labelText: 'Spécialité',
+                  filled: true,
+                  fillColor: Colors.grey[100],
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(
+                    vertical: 18,
+                    horizontal: 16,
+                  ),
+                ),
+                items: ['Toutes', ...AppConstants.medicalSpecialties]
+                    .map(
+                      (specialty) => DropdownMenuItem(
+                        value: specialty,
+                        child: Text(specialty),
+                      ),
+                    )
+                    .toList(),
+                onChanged: (value) =>
+                    setState(() => _selectedSpecialty = value),
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: DropdownButtonFormField<String>(
+                value: _selectedConsultationType,
+                style: TextStyle(fontSize: 15, color: Colors.black),
+                decoration: InputDecoration(
+                  labelText: 'Type de consultation',
+                  filled: true,
+                  fillColor: Colors.grey[100],
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(
+                    vertical: 18,
+                    horizontal: 16,
+                  ),
+                ),
+                items: _consultationTypes
+                    .map(
+                      (type) =>
+                          DropdownMenuItem(value: type, child: Text(type)),
+                    )
+                    .toList(),
+                onChanged: (value) =>
+                    setState(() => _selectedConsultationType = value),
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: DropdownButtonFormField<String>(
+                value: _selectedLocation,
+                style: TextStyle(fontSize: 15, color: Colors.black),
+                decoration: InputDecoration(
+                  labelText: 'Localité',
+                  filled: true,
+                  fillColor: Colors.grey[100],
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(
+                    vertical: 18,
+                    horizontal: 16,
+                  ),
+                ),
+                items:
+                    [
+                          'Toutes',
+                          'Abidjan',
+                          'Bouaké',
+                          'Daloa',
+                          'Yamoussoukro',
+                          'San-Pedro',
+                          'Korhogo',
+                          'Man',
+                        ]
+                        .map(
+                          (location) => DropdownMenuItem(
+                            value: location,
+                            child: Text(location),
+                          ),
+                        )
+                        .toList(),
+                onChanged: (value) => setState(() => _selectedLocation = value),
+              ),
+            ),
+            const SizedBox(width: 16),
+            ElevatedButton(
+              onPressed: _isSearching ? null : _performSearch,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                padding: const EdgeInsets.symmetric(
+                  vertical: 18,
+                  horizontal: 32,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              child: _isSearching
+                  ? const SizedBox(
+                      height: 20,
+                      width: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : const Text(
+                      'Rechercher',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMobileFilters(DeviceType deviceType, AdaptiveValues adaptive) {
+    return Column(
+      children: [
+        // Barre de recherche
+        TextField(
+          controller: _searchController,
+          style: TextStyle(fontSize: deviceType == DeviceType.tablet ? 16 : 14),
+          decoration: InputDecoration(
+            hintText: 'Nom, spécialité...',
+            prefixIcon: const Icon(CupertinoIcons.search),
+            filled: true,
+            fillColor: Colors.grey[100],
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide.none,
+            ),
+            contentPadding: EdgeInsets.symmetric(
+              vertical: deviceType == DeviceType.tablet ? 18 : 14,
+              horizontal: 16,
+            ),
+          ),
+          onSubmitted: (_) => _performSearch(),
+        ),
+        SizedBox(height: adaptive.spacing(mobile: 12, tablet: 16)),
+
+        // Filtre spécialité
+        DropdownButtonFormField<String>(
+          value: _selectedSpecialty,
+          style: TextStyle(
+            fontSize: deviceType == DeviceType.tablet ? 16 : 14,
+            color: Colors.black,
+          ),
+          decoration: InputDecoration(
+            labelText: 'Spécialité',
+            filled: true,
+            fillColor: Colors.grey[100],
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide.none,
+            ),
+            contentPadding: EdgeInsets.symmetric(
+              vertical: deviceType == DeviceType.tablet ? 18 : 14,
+              horizontal: 16,
+            ),
+          ),
+          items: ['Toutes', ...AppConstants.medicalSpecialties]
+              .map(
+                (specialty) =>
+                    DropdownMenuItem(value: specialty, child: Text(specialty)),
+              )
+              .toList(),
+          onChanged: (value) => setState(() => _selectedSpecialty = value),
+        ),
+        SizedBox(height: adaptive.spacing(mobile: 12, tablet: 16)),
+
+        // Filtre type de consultation
+        DropdownButtonFormField<String>(
+          value: _selectedConsultationType,
+          style: TextStyle(
+            fontSize: deviceType == DeviceType.tablet ? 16 : 14,
+            color: Colors.black,
+          ),
+          decoration: InputDecoration(
+            labelText: 'Type de consultation',
+            filled: true,
+            fillColor: Colors.grey[100],
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide.none,
+            ),
+            contentPadding: EdgeInsets.symmetric(
+              vertical: deviceType == DeviceType.tablet ? 18 : 14,
+              horizontal: 16,
+            ),
+          ),
+          items: _consultationTypes
+              .map((type) => DropdownMenuItem(value: type, child: Text(type)))
+              .toList(),
+          onChanged: (value) =>
+              setState(() => _selectedConsultationType = value),
+        ),
+        SizedBox(height: adaptive.spacing(mobile: 12, tablet: 16)),
+
+        // Filtre localité
+        DropdownButtonFormField<String>(
+          value: _selectedLocation,
+          style: TextStyle(
+            fontSize: deviceType == DeviceType.tablet ? 16 : 14,
+            color: Colors.black,
+          ),
+          decoration: InputDecoration(
+            labelText: 'Localité',
+            filled: true,
+            fillColor: Colors.grey[100],
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide.none,
+            ),
+            contentPadding: EdgeInsets.symmetric(
+              vertical: deviceType == DeviceType.tablet ? 18 : 14,
+              horizontal: 16,
+            ),
+          ),
+          items:
+              [
+                    'Toutes',
+                    'Abidjan',
+                    'Bouaké',
+                    'Daloa',
+                    'Yamoussoukro',
+                    'San-Pedro',
+                    'Korhogo',
+                    'Man',
+                  ]
+                  .map(
+                    (location) => DropdownMenuItem(
+                      value: location,
+                      child: Text(location),
+                    ),
+                  )
+                  .toList(),
+          onChanged: (value) => setState(() => _selectedLocation = value),
+        ),
+        SizedBox(height: adaptive.spacing(mobile: 16, tablet: 20)),
+
+        // Bouton de recherche
+        SizedBox(
+          width: double.infinity,
+          child: ElevatedButton(
+            onPressed: _isSearching ? null : _performSearch,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              padding: EdgeInsets.symmetric(
+                vertical: deviceType == DeviceType.tablet ? 18 : 16,
+              ),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            child: _isSearching
+                ? const SizedBox(
+                    height: 20,
+                    width: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
+                  )
+                : Text(
+                    'Rechercher',
+                    style: TextStyle(
+                      fontSize: deviceType == DeviceType.tablet ? 17 : 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
                   ),
           ),
-        ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildResultsList(DeviceType deviceType, AdaptiveValues adaptive) {
+    // Sur desktop, afficher en grille
+    if (deviceType == DeviceType.desktop) {
+      return GridView.builder(
+        padding: EdgeInsets.all(adaptive.spacing(mobile: 16, desktop: 24)),
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 3,
+          childAspectRatio: 1.1,
+          crossAxisSpacing: 20,
+          mainAxisSpacing: 20,
+        ),
+        itemCount: _results.length,
+        itemBuilder: (context, index) =>
+            _buildResultCard(_results[index], deviceType),
+      );
+    }
+
+    // Sur tablet, grille de 2 colonnes
+    if (deviceType == DeviceType.tablet) {
+      return GridView.builder(
+        padding: EdgeInsets.all(adaptive.spacing(mobile: 16, tablet: 20)),
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 2,
+          childAspectRatio: 1.0,
+          crossAxisSpacing: 16,
+          mainAxisSpacing: 16,
+        ),
+        itemCount: _results.length,
+        itemBuilder: (context, index) =>
+            _buildResultCard(_results[index], deviceType),
+      );
+    }
+
+    // Mobile: liste simple
+    return ListView.builder(
+      padding: EdgeInsets.all(adaptive.spacing(mobile: 16)),
+      itemCount: _results.length,
+      itemBuilder: (context, index) => Padding(
+        padding: const EdgeInsets.only(bottom: 12),
+        child: _buildResultCard(_results[index], deviceType),
       ),
+    );
+  }
+
+  Widget _buildResultCard(Map<String, dynamic> result, DeviceType deviceType) {
+    final user = result['user'] as Map<String, dynamic>;
+    final doctor = result['doctor'] as Map<String, dynamic>;
+
+    return _DoctorCard(
+      name: '${user['firstName']} ${user['lastName']}',
+      specialty: doctor['specialty'] ?? 'Spécialité non renseignée',
+      consultationFee: (doctor['consultationFee'] ?? 0.0).toDouble(),
+      offersTelemedicine: doctor['offersTelemedicine'] ?? false,
+      offersPhysicalConsultation: doctor['offersPhysicalConsultation'] ?? true,
+      photoUrl: user['photoUrl'],
+      location: doctor['city'] ?? '',
+      deviceType: deviceType,
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => DoctorProfilePage(
+              userId: result['userId'],
+              doctorId: result['userId'],
+            ),
+          ),
+        );
+      },
     );
   }
 }
@@ -349,6 +594,7 @@ class _DoctorCard extends StatelessWidget {
   final String location;
   final String? photoUrl;
   final VoidCallback onTap;
+  final DeviceType deviceType;
 
   const _DoctorCard({
     required this.name,
@@ -359,6 +605,7 @@ class _DoctorCard extends StatelessWidget {
     required this.location,
     this.photoUrl,
     required this.onTap,
+    required this.deviceType,
   });
 
   @override

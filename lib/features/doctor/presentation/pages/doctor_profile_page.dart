@@ -5,6 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/size_config.dart';
+import '../../../../core/utils/responsive.dart';
 import '../../../../shared/widgets/responsive_layout.dart';
 
 class DoctorProfilePage extends StatefulWidget {
@@ -113,12 +114,18 @@ class _DoctorProfilePageState extends State<DoctorProfilePage> {
       }
     }
 
+    final isDesktop = context.isDesktop;
+    final isTablet = context.isTablet;
+    final maxContentWidth = isDesktop
+        ? 900.0
+        : (isTablet ? 700.0 : double.infinity);
+
     return Scaffold(
       body: CustomScrollView(
         slivers: [
           // App Bar avec photo
           SliverAppBar(
-            expandedHeight: 200,
+            expandedHeight: isDesktop ? 250 : 200,
             pinned: true,
             backgroundColor: AppColors.primary,
             flexibleSpace: FlexibleSpaceBar(
@@ -186,664 +193,702 @@ class _DoctorProfilePageState extends State<DoctorProfilePage> {
 
           // Contenu
           SliverToBoxAdapter(
-            child: Column(
-              children: [
-                // Statistiques rapides
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    vertical: 20,
-                    horizontal: 16,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
-                        blurRadius: 10,
-                        offset: const Offset(0, 2),
+            child: Center(
+              child: ConstrainedBox(
+                constraints: BoxConstraints(maxWidth: maxContentWidth),
+                child: Column(
+                  children: [
+                    // Statistiques rapides
+                    Container(
+                      padding: EdgeInsets.symmetric(
+                        vertical: isDesktop ? 24 : 20,
+                        horizontal: isDesktop ? 24 : 16,
                       ),
-                    ],
-                  ),
-                  child: ResponsiveRow(
-                    spacing: 8,
-                    children: [
-                      _StatItem(
-                        icon: CupertinoIcons.briefcase,
-                        value: '$yearsOfExperience',
-                        label: 'ans d\'expérience',
-                        color: AppColors.primary,
-                      ),
-                    ],
-                  ),
-                ),
-
-                // Types de consultation
-                Padding(
-                  padding: EdgeInsets.all(getProportionateScreenWidth(16)),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Types de consultation',
-                        style: TextStyle(
-                          fontSize: getProportionateScreenHeight(20),
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      ResponsiveRow(
-                        spacing: 12,
-                        children: [
-                          if (offersPhysicalConsultation)
-                            _ConsultationTypeCard(
-                              icon: CupertinoIcons.plus_circle,
-                              title: 'Consultation au cabinet',
-                              price: consultationFee,
-                              color: AppColors.primary,
-                            ),
-                          if (offersTelemedicine)
-                            _ConsultationTypeCard(
-                              icon: CupertinoIcons.videocam_fill,
-                              title: 'Téléconsultation',
-                              price: teleconsultationFee,
-                              color: AppColors.accent,
-                            ),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.05),
+                            blurRadius: 10,
+                            offset: const Offset(0, 2),
+                          ),
                         ],
                       ),
-                    ],
-                  ),
-                ),
-
-                // À propos
-                if (bio.isNotEmpty)
-                  Padding(
-                    padding: EdgeInsets.all(getProportionateScreenWidth(16)),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'À propos',
-                          style: TextStyle(
-                            fontSize: getProportionateScreenHeight(20),
-                            fontWeight: FontWeight.bold,
+                      child: ResponsiveRow(
+                        spacing: 8,
+                        children: [
+                          _StatItem(
+                            icon: CupertinoIcons.briefcase,
+                            value: '$yearsOfExperience',
+                            label: 'ans d\'expérience',
+                            color: AppColors.primary,
                           ),
-                        ),
-                        const SizedBox(height: 12),
-                        Container(
-                          padding: EdgeInsets.all(
-                            getProportionateScreenWidth(16),
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.grey[50],
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Text(
-                            bio,
-                            style: TextStyle(
-                              fontSize: getProportionateScreenHeight(15),
-                              height: 1.5,
-                              color: Colors.grey[800],
-                            ),
-                          ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
-                  ),
 
-                // Qualifications
-                if (qualifications.isNotEmpty)
-                  Padding(
-                    padding: EdgeInsets.all(getProportionateScreenWidth(16)),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Qualifications',
-                          style: TextStyle(
-                            fontSize: getProportionateScreenHeight(20),
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        ...qualifications.map(
-                          (qual) => Padding(
-                            padding: EdgeInsets.only(
-                              bottom: getProportionateScreenHeight(8),
+                    // Types de consultation
+                    Padding(
+                      padding: EdgeInsets.all(getProportionateScreenWidth(16)),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Types de consultation',
+                            style: TextStyle(
+                              fontSize: getProportionateScreenHeight(20),
+                              fontWeight: FontWeight.bold,
                             ),
-                            child: Row(
-                              children: [
-                                Icon(
-                                  CupertinoIcons.checkmark_circle,
-                                  color: AppColors.success,
-                                  size: 20,
+                          ),
+                          const SizedBox(height: 12),
+                          ResponsiveRow(
+                            spacing: 12,
+                            children: [
+                              if (offersPhysicalConsultation)
+                                _ConsultationTypeCard(
+                                  icon: CupertinoIcons.plus_circle,
+                                  title: 'Consultation au cabinet',
+                                  price: consultationFee,
+                                  color: AppColors.primary,
                                 ),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: Text(
-                                    qual,
-                                    style: TextStyle(
-                                      fontSize: getProportionateScreenHeight(
-                                        15,
+                              if (offersTelemedicine)
+                                _ConsultationTypeCard(
+                                  icon: CupertinoIcons.videocam_fill,
+                                  title: 'Téléconsultation',
+                                  price: teleconsultationFee,
+                                  color: AppColors.accent,
+                                ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    // À propos
+                    if (bio.isNotEmpty)
+                      Padding(
+                        padding: EdgeInsets.all(
+                          getProportionateScreenWidth(16),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'À propos',
+                              style: TextStyle(
+                                fontSize: getProportionateScreenHeight(20),
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            Container(
+                              padding: EdgeInsets.all(
+                                getProportionateScreenWidth(16),
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.grey[50],
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Text(
+                                bio,
+                                style: TextStyle(
+                                  fontSize: getProportionateScreenHeight(15),
+                                  height: 1.5,
+                                  color: Colors.grey[800],
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                    // Qualifications
+                    if (qualifications.isNotEmpty)
+                      Padding(
+                        padding: EdgeInsets.all(
+                          getProportionateScreenWidth(16),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Qualifications',
+                              style: TextStyle(
+                                fontSize: getProportionateScreenHeight(20),
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            ...qualifications.map(
+                              (qual) => Padding(
+                                padding: EdgeInsets.only(
+                                  bottom: getProportionateScreenHeight(8),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      CupertinoIcons.checkmark_circle,
+                                      color: AppColors.success,
+                                      size: 20,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Text(
+                                        qual,
+                                        style: TextStyle(
+                                          fontSize:
+                                              getProportionateScreenHeight(15),
+                                        ),
                                       ),
                                     ),
-                                  ),
+                                  ],
                                 ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                // Formation académique
-                if (education.isNotEmpty)
-                  Padding(
-                    padding: EdgeInsets.all(getProportionateScreenWidth(16)),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Formation académique',
-                          style: TextStyle(
-                            fontSize: getProportionateScreenHeight(20),
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        ...education.map(
-                          (edu) => Card(
-                            margin: EdgeInsets.only(
-                              bottom: getProportionateScreenHeight(12),
-                            ),
-                            child: Padding(
-                              padding: EdgeInsets.all(
-                                getProportionateScreenWidth(16),
                               ),
-                              child: Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Container(
-                                    padding: EdgeInsets.all(
-                                      getProportionateScreenWidth(8),
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: AppColors.primary.withOpacity(0.1),
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                    child: Icon(
-                                      CupertinoIcons.book,
-                                      color: AppColors.primary,
-                                      size: 24,
-                                    ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                    // Formation académique
+                    if (education.isNotEmpty)
+                      Padding(
+                        padding: EdgeInsets.all(
+                          getProportionateScreenWidth(16),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Formation académique',
+                              style: TextStyle(
+                                fontSize: getProportionateScreenHeight(20),
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            ...education.map(
+                              (edu) => Card(
+                                margin: EdgeInsets.only(
+                                  bottom: getProportionateScreenHeight(12),
+                                ),
+                                child: Padding(
+                                  padding: EdgeInsets.all(
+                                    getProportionateScreenWidth(16),
                                   ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          edu['degree'] ?? '',
-                                          style: TextStyle(
-                                            fontSize:
-                                                getProportionateScreenHeight(
-                                                  16,
-                                                ),
-                                            fontWeight: FontWeight.bold,
+                                  child: Row(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Container(
+                                        padding: EdgeInsets.all(
+                                          getProportionateScreenWidth(8),
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: AppColors.primary.withOpacity(
+                                            0.1,
+                                          ),
+                                          borderRadius: BorderRadius.circular(
+                                            8,
                                           ),
                                         ),
-                                        const SizedBox(height: 4),
-                                        Text(
-                                          edu['institution'] ?? '',
-                                          style: TextStyle(
-                                            fontSize:
-                                                getProportionateScreenHeight(
-                                                  14,
-                                                ),
-                                            color: Colors.grey[700],
-                                          ),
+                                        child: Icon(
+                                          CupertinoIcons.book,
+                                          color: AppColors.primary,
+                                          size: 24,
                                         ),
-                                        const SizedBox(height: 4),
-                                        Row(
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
                                           children: [
-                                            Icon(
-                                              CupertinoIcons.calendar,
-                                              size: 14,
-                                              color: Colors.grey[600],
-                                            ),
-                                            const SizedBox(width: 4),
                                             Text(
-                                              '${edu['startYear']} - ${edu['endYear']}',
+                                              edu['degree'] ?? '',
                                               style: TextStyle(
                                                 fontSize:
                                                     getProportionateScreenHeight(
-                                                      13,
+                                                      16,
                                                     ),
-                                                color: Colors.grey[600],
+                                                fontWeight: FontWeight.bold,
                                               ),
                                             ),
-                                          ],
-                                        ),
-                                        if (edu['description']?.isNotEmpty ??
-                                            false) ...[
-                                          const SizedBox(height: 8),
-                                          Text(
-                                            edu['description'],
-                                            style: TextStyle(
-                                              fontSize:
-                                                  getProportionateScreenHeight(
-                                                    14,
-                                                  ),
-                                              color: Colors.grey[800],
-                                            ),
-                                          ),
-                                        ],
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                // Expériences professionnelles
-                if (experiences.isNotEmpty)
-                  Padding(
-                    padding: EdgeInsets.all(getProportionateScreenWidth(16)),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Expériences professionnelles',
-                          style: TextStyle(
-                            fontSize: getProportionateScreenHeight(20),
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        ...experiences.map(
-                          (exp) => Card(
-                            margin: EdgeInsets.only(
-                              bottom: getProportionateScreenHeight(12),
-                            ),
-                            child: Padding(
-                              padding: EdgeInsets.all(
-                                getProportionateScreenWidth(16),
-                              ),
-                              child: Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Container(
-                                    padding: EdgeInsets.all(
-                                      getProportionateScreenWidth(8),
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: Colors.green.withOpacity(0.1),
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                    child: const Icon(
-                                      CupertinoIcons.briefcase_fill,
-                                      color: Colors.green,
-                                      size: 24,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Row(
-                                          children: [
-                                            Expanded(
-                                              child: Text(
-                                                exp['position'] ?? '',
-                                                style: TextStyle(
-                                                  fontSize:
-                                                      getProportionateScreenHeight(
-                                                        16,
-                                                      ),
-                                                  fontWeight: FontWeight.bold,
-                                                ),
+                                            const SizedBox(height: 4),
+                                            Text(
+                                              edu['institution'] ?? '',
+                                              style: TextStyle(
+                                                fontSize:
+                                                    getProportionateScreenHeight(
+                                                      14,
+                                                    ),
+                                                color: Colors.grey[700],
                                               ),
                                             ),
-                                            if (exp['current'] == true)
-                                              Container(
-                                                padding:
-                                                    const EdgeInsets.symmetric(
-                                                      horizontal: 8,
-                                                      vertical: 4,
-                                                    ),
-                                                decoration: BoxDecoration(
-                                                  color: Colors.green
-                                                      .withOpacity(0.1),
-                                                  borderRadius:
-                                                      BorderRadius.circular(12),
+                                            const SizedBox(height: 4),
+                                            Row(
+                                              children: [
+                                                Icon(
+                                                  CupertinoIcons.calendar,
+                                                  size: 14,
+                                                  color: Colors.grey[600],
                                                 ),
-                                                child: Text(
-                                                  'Actuel',
+                                                const SizedBox(width: 4),
+                                                Text(
+                                                  '${edu['startYear']} - ${edu['endYear']}',
                                                   style: TextStyle(
-                                                    color: Colors.green,
                                                     fontSize:
                                                         getProportionateScreenHeight(
-                                                          11,
+                                                          13,
                                                         ),
-                                                    fontWeight: FontWeight.w600,
+                                                    color: Colors.grey[600],
                                                   ),
                                                 ),
-                                              ),
-                                          ],
-                                        ),
-                                        const SizedBox(height: 4),
-                                        Text(
-                                          exp['organization'] ?? '',
-                                          style: TextStyle(
-                                            fontSize:
-                                                getProportionateScreenHeight(
-                                                  14,
-                                                ),
-                                            color: Colors.grey[700],
-                                          ),
-                                        ),
-                                        const SizedBox(height: 4),
-                                        Row(
-                                          children: [
-                                            Icon(
-                                              CupertinoIcons.calendar,
-                                              size: 14,
-                                              color: Colors.grey[600],
+                                              ],
                                             ),
-                                            const SizedBox(width: 4),
-                                            Text(
-                                              exp['current'] == true
-                                                  ? '${exp['startDate']} - Présent'
-                                                  : '${exp['startDate']} - ${exp['endDate']}',
-                                              style: TextStyle(
-                                                fontSize:
-                                                    getProportionateScreenHeight(
-                                                      13,
-                                                    ),
-                                                color: Colors.grey[600],
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                        if (exp['description']?.isNotEmpty ??
-                                            false) ...[
-                                          const SizedBox(height: 8),
-                                          Text(
-                                            exp['description'],
-                                            style: TextStyle(
-                                              fontSize:
-                                                  getProportionateScreenHeight(
-                                                    14,
-                                                  ),
-                                              color: Colors.grey[800],
-                                            ),
-                                          ),
-                                        ],
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                // Certifications
-                if (certifications.isNotEmpty)
-                  Padding(
-                    padding: EdgeInsets.all(getProportionateScreenWidth(16)),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Certifications',
-                          style: TextStyle(
-                            fontSize: getProportionateScreenHeight(20),
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        ...certifications.map(
-                          (cert) => Card(
-                            margin: EdgeInsets.only(
-                              bottom: getProportionateScreenHeight(12),
-                            ),
-                            child: Padding(
-                              padding: EdgeInsets.all(
-                                getProportionateScreenWidth(16),
-                              ),
-                              child: Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Container(
-                                    padding: EdgeInsets.all(
-                                      getProportionateScreenWidth(8),
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: Colors.amber.withOpacity(0.1),
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                    child: const Icon(
-                                      CupertinoIcons.checkmark_seal_fill,
-                                      color: Colors.amber,
-                                      size: 24,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          cert['name'] ?? '',
-                                          style: TextStyle(
-                                            fontSize:
-                                                getProportionateScreenHeight(
-                                                  16,
-                                                ),
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 4),
-                                        Text(
-                                          cert['issuer'] ?? '',
-                                          style: TextStyle(
-                                            fontSize:
-                                                getProportionateScreenHeight(
-                                                  14,
-                                                ),
-                                            color: Colors.grey[700],
-                                          ),
-                                        ),
-                                        const SizedBox(height: 4),
-                                        Row(
-                                          children: [
-                                            Icon(
-                                              CupertinoIcons.calendar,
-                                              size: 14,
-                                              color: Colors.grey[600],
-                                            ),
-                                            const SizedBox(width: 4),
-                                            Text(
-                                              cert['date'] ?? '',
-                                              style: TextStyle(
-                                                fontSize:
-                                                    getProportionateScreenHeight(
-                                                      13,
-                                                    ),
-                                                color: Colors.grey[600],
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                        if (cert['credentialId']?.isNotEmpty ??
-                                            false) ...[
-                                          const SizedBox(height: 4),
-                                          Row(
-                                            children: [
-                                              Icon(
-                                                CupertinoIcons.tag_fill,
-                                                size: 14,
-                                                color: Colors.grey[600],
-                                              ),
-                                              const SizedBox(width: 4),
+                                            if (edu['description']
+                                                    ?.isNotEmpty ??
+                                                false) ...[
+                                              const SizedBox(height: 8),
                                               Text(
-                                                'ID: ${cert['credentialId']}',
+                                                edu['description'],
                                                 style: TextStyle(
                                                   fontSize:
                                                       getProportionateScreenHeight(
-                                                        12,
+                                                        14,
                                                       ),
-                                                  color: Colors.grey[600],
+                                                  color: Colors.grey[800],
                                                 ),
                                               ),
                                             ],
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                    // Expériences professionnelles
+                    if (experiences.isNotEmpty)
+                      Padding(
+                        padding: EdgeInsets.all(
+                          getProportionateScreenWidth(16),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Expériences professionnelles',
+                              style: TextStyle(
+                                fontSize: getProportionateScreenHeight(20),
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            ...experiences.map(
+                              (exp) => Card(
+                                margin: EdgeInsets.only(
+                                  bottom: getProportionateScreenHeight(12),
+                                ),
+                                child: Padding(
+                                  padding: EdgeInsets.all(
+                                    getProportionateScreenWidth(16),
+                                  ),
+                                  child: Row(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Container(
+                                        padding: EdgeInsets.all(
+                                          getProportionateScreenWidth(8),
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: Colors.green.withOpacity(0.1),
+                                          borderRadius: BorderRadius.circular(
+                                            8,
                                           ),
-                                        ],
-                                      ],
+                                        ),
+                                        child: const Icon(
+                                          CupertinoIcons.briefcase_fill,
+                                          color: Colors.green,
+                                          size: 24,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Row(
+                                              children: [
+                                                Expanded(
+                                                  child: Text(
+                                                    exp['position'] ?? '',
+                                                    style: TextStyle(
+                                                      fontSize:
+                                                          getProportionateScreenHeight(
+                                                            16,
+                                                          ),
+                                                      fontWeight:
+                                                          FontWeight.bold,
+                                                    ),
+                                                  ),
+                                                ),
+                                                if (exp['current'] == true)
+                                                  Container(
+                                                    padding:
+                                                        const EdgeInsets.symmetric(
+                                                          horizontal: 8,
+                                                          vertical: 4,
+                                                        ),
+                                                    decoration: BoxDecoration(
+                                                      color: Colors.green
+                                                          .withOpacity(0.1),
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                            12,
+                                                          ),
+                                                    ),
+                                                    child: Text(
+                                                      'Actuel',
+                                                      style: TextStyle(
+                                                        color: Colors.green,
+                                                        fontSize:
+                                                            getProportionateScreenHeight(
+                                                              11,
+                                                            ),
+                                                        fontWeight:
+                                                            FontWeight.w600,
+                                                      ),
+                                                    ),
+                                                  ),
+                                              ],
+                                            ),
+                                            const SizedBox(height: 4),
+                                            Text(
+                                              exp['organization'] ?? '',
+                                              style: TextStyle(
+                                                fontSize:
+                                                    getProportionateScreenHeight(
+                                                      14,
+                                                    ),
+                                                color: Colors.grey[700],
+                                              ),
+                                            ),
+                                            const SizedBox(height: 4),
+                                            Row(
+                                              children: [
+                                                Icon(
+                                                  CupertinoIcons.calendar,
+                                                  size: 14,
+                                                  color: Colors.grey[600],
+                                                ),
+                                                const SizedBox(width: 4),
+                                                Text(
+                                                  exp['current'] == true
+                                                      ? '${exp['startDate']} - Présent'
+                                                      : '${exp['startDate']} - ${exp['endDate']}',
+                                                  style: TextStyle(
+                                                    fontSize:
+                                                        getProportionateScreenHeight(
+                                                          13,
+                                                        ),
+                                                    color: Colors.grey[600],
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                            if (exp['description']
+                                                    ?.isNotEmpty ??
+                                                false) ...[
+                                              const SizedBox(height: 8),
+                                              Text(
+                                                exp['description'],
+                                                style: TextStyle(
+                                                  fontSize:
+                                                      getProportionateScreenHeight(
+                                                        14,
+                                                      ),
+                                                  color: Colors.grey[800],
+                                                ),
+                                              ),
+                                            ],
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                    // Certifications
+                    if (certifications.isNotEmpty)
+                      Padding(
+                        padding: EdgeInsets.all(
+                          getProportionateScreenWidth(16),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Certifications',
+                              style: TextStyle(
+                                fontSize: getProportionateScreenHeight(20),
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            ...certifications.map(
+                              (cert) => Card(
+                                margin: EdgeInsets.only(
+                                  bottom: getProportionateScreenHeight(12),
+                                ),
+                                child: Padding(
+                                  padding: EdgeInsets.all(
+                                    getProportionateScreenWidth(16),
+                                  ),
+                                  child: Row(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Container(
+                                        padding: EdgeInsets.all(
+                                          getProportionateScreenWidth(8),
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: Colors.amber.withOpacity(0.1),
+                                          borderRadius: BorderRadius.circular(
+                                            8,
+                                          ),
+                                        ),
+                                        child: const Icon(
+                                          CupertinoIcons.checkmark_seal_fill,
+                                          color: Colors.amber,
+                                          size: 24,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              cert['name'] ?? '',
+                                              style: TextStyle(
+                                                fontSize:
+                                                    getProportionateScreenHeight(
+                                                      16,
+                                                    ),
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 4),
+                                            Text(
+                                              cert['issuer'] ?? '',
+                                              style: TextStyle(
+                                                fontSize:
+                                                    getProportionateScreenHeight(
+                                                      14,
+                                                    ),
+                                                color: Colors.grey[700],
+                                              ),
+                                            ),
+                                            const SizedBox(height: 4),
+                                            Row(
+                                              children: [
+                                                Icon(
+                                                  CupertinoIcons.calendar,
+                                                  size: 14,
+                                                  color: Colors.grey[600],
+                                                ),
+                                                const SizedBox(width: 4),
+                                                Text(
+                                                  cert['date'] ?? '',
+                                                  style: TextStyle(
+                                                    fontSize:
+                                                        getProportionateScreenHeight(
+                                                          13,
+                                                        ),
+                                                    color: Colors.grey[600],
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                            if (cert['credentialId']
+                                                    ?.isNotEmpty ??
+                                                false) ...[
+                                              const SizedBox(height: 4),
+                                              Row(
+                                                children: [
+                                                  Icon(
+                                                    CupertinoIcons.tag_fill,
+                                                    size: 14,
+                                                    color: Colors.grey[600],
+                                                  ),
+                                                  const SizedBox(width: 4),
+                                                  Text(
+                                                    'ID: ${cert['credentialId']}',
+                                                    style: TextStyle(
+                                                      fontSize:
+                                                          getProportionateScreenHeight(
+                                                            12,
+                                                          ),
+                                                      color: Colors.grey[600],
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ],
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                    // Documents (CV, diplômes)
+                    if (documents.isNotEmpty)
+                      Padding(
+                        padding: EdgeInsets.all(
+                          getProportionateScreenWidth(16),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Documents professionnels',
+                              style: TextStyle(
+                                fontSize: getProportionateScreenHeight(20),
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            ...documents.map(
+                              (doc) => Card(
+                                margin: EdgeInsets.only(
+                                  bottom: getProportionateScreenHeight(8),
+                                ),
+                                child: ListTile(
+                                  leading: CircleAvatar(
+                                    backgroundColor: AppColors.secondary
+                                        .withOpacity(0.1),
+                                    child: Icon(
+                                      _getDocIcon(doc['type']),
+                                      color: AppColors.secondary,
                                     ),
                                   ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                // Documents (CV, diplômes)
-                if (documents.isNotEmpty)
-                  Padding(
-                    padding: EdgeInsets.all(getProportionateScreenWidth(16)),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Documents professionnels',
-                          style: TextStyle(
-                            fontSize: getProportionateScreenHeight(20),
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        ...documents.map(
-                          (doc) => Card(
-                            margin: EdgeInsets.only(
-                              bottom: getProportionateScreenHeight(8),
-                            ),
-                            child: ListTile(
-                              leading: CircleAvatar(
-                                backgroundColor: AppColors.secondary
-                                    .withOpacity(0.1),
-                                child: Icon(
-                                  _getDocIcon(doc['type']),
-                                  color: AppColors.secondary,
-                                ),
-                              ),
-                              title: Text(doc['name'] ?? 'Document'),
-                              subtitle: Text(_getDocTypeLabel(doc['type'])),
-                              trailing: IconButton(
-                                icon: const Icon(
-                                  CupertinoIcons.arrow_up_right_square,
-                                ),
-                                onPressed: () async {
-                                  final url = doc['url'];
-                                  if (url != null) {
-                                    final uri = Uri.parse(url);
-                                    if (await canLaunchUrl(uri)) {
-                                      await launchUrl(
-                                        uri,
-                                        mode: LaunchMode.externalApplication,
-                                      );
-                                    } else {
-                                      if (mounted) {
-                                        ScaffoldMessenger.of(
-                                          context,
-                                        ).showSnackBar(
-                                          const SnackBar(
-                                            content: Text(
-                                              'Impossible d\'ouvrir le document',
-                                            ),
-                                          ),
-                                        );
+                                  title: Text(doc['name'] ?? 'Document'),
+                                  subtitle: Text(_getDocTypeLabel(doc['type'])),
+                                  trailing: IconButton(
+                                    icon: const Icon(
+                                      CupertinoIcons.arrow_up_right_square,
+                                    ),
+                                    onPressed: () async {
+                                      final url = doc['url'];
+                                      if (url != null) {
+                                        final uri = Uri.parse(url);
+                                        if (await canLaunchUrl(uri)) {
+                                          await launchUrl(
+                                            uri,
+                                            mode:
+                                                LaunchMode.externalApplication,
+                                          );
+                                        } else {
+                                          if (mounted) {
+                                            ScaffoldMessenger.of(
+                                              context,
+                                            ).showSnackBar(
+                                              const SnackBar(
+                                                content: Text(
+                                                  'Impossible d\'ouvrir le document',
+                                                ),
+                                              ),
+                                            );
+                                          }
+                                        }
                                       }
-                                    }
-                                  }
-                                },
+                                    },
+                                  ),
+                                ),
                               ),
                             ),
-                          ),
+                          ],
                         ),
-                      ],
-                    ),
-                  ),
+                      ),
 
-                const SizedBox(height: 100),
-              ],
+                    const SizedBox(height: 100),
+                  ],
+                ),
+              ),
             ),
           ),
         ],
       ),
-      bottomNavigationBar: Container(
-        padding: EdgeInsets.all(getProportionateScreenWidth(16)),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.1),
-              blurRadius: 10,
-              offset: const Offset(0, -2),
+      bottomNavigationBar: Center(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(maxWidth: maxContentWidth),
+          child: Container(
+            padding: EdgeInsets.all(isDesktop ? 24 : 16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.1),
+                  blurRadius: 10,
+                  offset: const Offset(0, -2),
+                ),
+              ],
             ),
-          ],
-        ),
-        child: SafeArea(
-          child: ElevatedButton(
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => AppointmentBookingPage(
-                    userId: widget.userId,
-                    doctorId: widget.doctorId,
-                    doctorName: 'Dr. $firstName $lastName',
-                    specialty: specialty,
-                    photoUrl: photoUrl,
-                    consultationFee: consultationFee,
-                    teleconsultationFee: teleconsultationFee,
-                    offersPhysicalConsultation: offersPhysicalConsultation,
-                    offersTelemedicine: offersTelemedicine,
+            child: SafeArea(
+              child: ElevatedButton(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => AppointmentBookingPage(
+                        userId: widget.userId,
+                        doctorId: widget.doctorId,
+                        doctorName: 'Dr. $firstName $lastName',
+                        specialty: specialty,
+                        photoUrl: photoUrl,
+                        consultationFee: consultationFee,
+                        teleconsultationFee: teleconsultationFee,
+                        offersPhysicalConsultation: offersPhysicalConsultation,
+                        offersTelemedicine: offersTelemedicine,
+                      ),
+                    ),
+                  );
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  padding: EdgeInsets.symmetric(vertical: isDesktop ? 20 : 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
                   ),
                 ),
-              );
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primary,
-              padding: EdgeInsets.symmetric(
-                vertical: getProportionateScreenHeight(16),
-              ),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-            child: Text(
-              'Prendre rendez-vous',
-              style: TextStyle(
-                fontSize: getProportionateScreenHeight(18),
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
+                child: Text(
+                  'Prendre rendez-vous',
+                  style: TextStyle(
+                    fontSize: isDesktop ? 20 : 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
               ),
             ),
           ),

@@ -4,7 +4,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/services/settings_service.dart';
 import '../../../../core/constants/app_settings_constants.dart';
 import '../../../../core/l10n/app_localizations.dart';
-import '../../../../core/utils/size_config.dart';
+import '../../../../core/utils/responsive.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 class AccountSettingsPage extends StatefulWidget {
@@ -64,6 +64,8 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
+    final deviceType = context.deviceType;
+    final adaptive = AdaptiveValues(context);
 
     return Scaffold(
       appBar: AppBar(
@@ -73,7 +75,9 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
           if (_isSaving)
             Center(
               child: Padding(
-                padding: EdgeInsets.all(getProportionateScreenWidth(16)),
+                padding: EdgeInsets.all(
+                  adaptive.spacing(mobile: 16, desktop: 20),
+                ),
                 child: SizedBox(
                   width: 20,
                   height: 20,
@@ -92,74 +96,103 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
             ),
         ],
       ),
-      body: ListView(
-        padding: EdgeInsets.all(getProportionateScreenWidth(16)),
-        children: [
-          // Section Langue
-          _buildSectionHeader(
-            icon: CupertinoIcons.globe,
-            title: l10n.language,
-            subtitle: l10n.selectLanguage,
+      body: Center(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxWidth: deviceType == DeviceType.desktop
+                ? 700
+                : deviceType == DeviceType.tablet
+                ? 600
+                : double.infinity,
           ),
-          const SizedBox(height: 12),
-          _buildLanguageSelector(),
-          const SizedBox(height: 32),
-
-          // Section Devise
-          _buildSectionHeader(
-            icon: CupertinoIcons.money_dollar,
-            title: l10n.currency,
-            subtitle: l10n.selectCurrency,
-          ),
-          const SizedBox(height: 12),
-          _buildCurrencySelector(),
-          const SizedBox(height: 32),
-
-          // Info
-          Container(
-            padding: EdgeInsets.all(getProportionateScreenWidth(16)),
-            decoration: BoxDecoration(
-              color: Colors.blue.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.blue.withOpacity(0.3)),
+          child: ListView(
+            padding: EdgeInsets.all(
+              adaptive.spacing(mobile: 16, tablet: 24, desktop: 32),
             ),
-            child: Row(
-              children: [
-                Icon(CupertinoIcons.info_circle, color: Colors.blue[700]),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    l10n.settingsAppliedEverywhere,
-                    style: TextStyle(
-                      color: Colors.blue[900],
-                      fontSize: getProportionateScreenHeight(13),
+            children: [
+              // Section Langue
+              _buildSectionHeader(
+                icon: CupertinoIcons.globe,
+                title: l10n.language,
+                subtitle: l10n.selectLanguage,
+                deviceType: deviceType,
+              ),
+              SizedBox(height: adaptive.spacing(mobile: 12, desktop: 16)),
+              _buildLanguageSelector(deviceType),
+              SizedBox(height: adaptive.spacing(mobile: 32, desktop: 40)),
+
+              // Section Devise
+              _buildSectionHeader(
+                icon: CupertinoIcons.money_dollar,
+                title: l10n.currency,
+                subtitle: l10n.selectCurrency,
+                deviceType: deviceType,
+              ),
+              SizedBox(height: adaptive.spacing(mobile: 12, desktop: 16)),
+              _buildCurrencySelector(deviceType),
+              SizedBox(height: adaptive.spacing(mobile: 32, desktop: 40)),
+
+              // Info
+              Container(
+                padding: EdgeInsets.all(
+                  adaptive.spacing(mobile: 16, desktop: 20),
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.blue.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.blue.withOpacity(0.3)),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      CupertinoIcons.info_circle,
+                      color: Colors.blue[700],
+                      size: deviceType == DeviceType.desktop ? 28 : 24,
                     ),
+                    SizedBox(width: adaptive.spacing(mobile: 12, desktop: 16)),
+                    Expanded(
+                      child: Text(
+                        l10n.settingsAppliedEverywhere,
+                        style: TextStyle(
+                          color: Colors.blue[900],
+                          fontSize: deviceType == DeviceType.desktop ? 15 : 13,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              SizedBox(height: adaptive.spacing(mobile: 16, desktop: 24)),
+
+              // Bouton Enregistrer
+              ElevatedButton.icon(
+                onPressed: _isSaving ? null : _saveSettings,
+                icon: _isSaving
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(CupertinoIcons.checkmark),
+                label: Text(
+                  _isSaving ? l10n.saving : l10n.save,
+                  style: TextStyle(
+                    fontSize: deviceType == DeviceType.desktop ? 17 : 16,
                   ),
                 ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
-
-          // Bouton Enregistrer
-          ElevatedButton.icon(
-            onPressed: _isSaving ? null : _saveSettings,
-            icon: _isSaving
-                ? const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Icon(CupertinoIcons.checkmark),
-            label: Text(_isSaving ? l10n.saving : l10n.save),
-            style: ElevatedButton.styleFrom(
-              minimumSize: const Size(double.infinity, 50),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
+                style: ElevatedButton.styleFrom(
+                  minimumSize: Size(
+                    double.infinity,
+                    deviceType == DeviceType.desktop ? 56 : 50,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
               ),
-            ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
@@ -168,18 +201,23 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
     required IconData icon,
     required String title,
     required String subtitle,
+    required DeviceType deviceType,
   }) {
     return Row(
       children: [
         Container(
-          padding: EdgeInsets.all(getProportionateScreenWidth(8)),
+          padding: EdgeInsets.all(deviceType == DeviceType.desktop ? 12 : 8),
           decoration: BoxDecoration(
             gradient: AppColors.primaryGradient,
             borderRadius: BorderRadius.circular(8),
           ),
-          child: Icon(icon, color: Colors.white, size: 24),
+          child: Icon(
+            icon,
+            color: Colors.white,
+            size: deviceType == DeviceType.desktop ? 28 : 24,
+          ),
         ),
-        const SizedBox(width: 12),
+        SizedBox(width: deviceType == DeviceType.desktop ? 16 : 12),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -187,14 +225,14 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
               Text(
                 title,
                 style: TextStyle(
-                  fontSize: getProportionateScreenHeight(18),
+                  fontSize: deviceType == DeviceType.desktop ? 20 : 18,
                   fontWeight: FontWeight.bold,
                 ),
               ),
               Text(
                 subtitle,
                 style: TextStyle(
-                  fontSize: getProportionateScreenHeight(13),
+                  fontSize: deviceType == DeviceType.desktop ? 15 : 13,
                   color: AppColors.textSecondary,
                 ),
               ),
@@ -205,7 +243,7 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
     );
   }
 
-  Widget _buildLanguageSelector() {
+  Widget _buildLanguageSelector(DeviceType deviceType) {
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -213,9 +251,13 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
         children: AppSettingsConstants.availableLanguages.entries.map((entry) {
           final isSelected = _selectedLanguage == entry.key;
           return ListTile(
+            contentPadding: EdgeInsets.symmetric(
+              horizontal: deviceType == DeviceType.desktop ? 20 : 16,
+              vertical: deviceType == DeviceType.desktop ? 8 : 4,
+            ),
             leading: Container(
-              width: 40,
-              height: 40,
+              width: deviceType == DeviceType.desktop ? 48 : 40,
+              height: deviceType == DeviceType.desktop ? 48 : 40,
               decoration: BoxDecoration(
                 color: isSelected
                     ? AppColors.primary.withOpacity(0.1)
@@ -225,7 +267,9 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
               child: Center(
                 child: Text(
                   _getLanguageFlag(entry.key),
-                  style: TextStyle(fontSize: getProportionateScreenHeight(24)),
+                  style: TextStyle(
+                    fontSize: deviceType == DeviceType.desktop ? 28 : 24,
+                  ),
                 ),
               ),
             ),
@@ -234,12 +278,14 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
               style: TextStyle(
                 fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
                 color: isSelected ? AppColors.primary : Colors.black87,
+                fontSize: deviceType == DeviceType.desktop ? 17 : 15,
               ),
             ),
             trailing: isSelected
-                ? const Icon(
+                ? Icon(
                     CupertinoIcons.checkmark_circle,
                     color: AppColors.primary,
+                    size: deviceType == DeviceType.desktop ? 28 : 24,
                   )
                 : null,
             onTap: () {
@@ -253,7 +299,7 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
     );
   }
 
-  Widget _buildCurrencySelector() {
+  Widget _buildCurrencySelector(DeviceType deviceType) {
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -262,9 +308,13 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
           final currency = entry.value;
           final isSelected = _selectedCurrency == entry.key;
           return ListTile(
+            contentPadding: EdgeInsets.symmetric(
+              horizontal: deviceType == DeviceType.desktop ? 20 : 16,
+              vertical: deviceType == DeviceType.desktop ? 8 : 4,
+            ),
             leading: Container(
-              width: 50,
-              height: 40,
+              width: deviceType == DeviceType.desktop ? 56 : 50,
+              height: deviceType == DeviceType.desktop ? 48 : 40,
               decoration: BoxDecoration(
                 color: isSelected
                     ? AppColors.primary.withOpacity(0.1)
@@ -275,7 +325,7 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
                 child: Text(
                   currency.symbol,
                   style: TextStyle(
-                    fontSize: getProportionateScreenHeight(20),
+                    fontSize: deviceType == DeviceType.desktop ? 24 : 20,
                     fontWeight: FontWeight.bold,
                     color: isSelected ? AppColors.primary : Colors.black87,
                   ),
@@ -287,19 +337,21 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
               style: TextStyle(
                 fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
                 color: isSelected ? AppColors.primary : Colors.black87,
+                fontSize: deviceType == DeviceType.desktop ? 17 : 15,
               ),
             ),
             subtitle: Text(
               'Exemple: ${currency.format(100.0)}',
               style: TextStyle(
-                fontSize: getProportionateScreenHeight(12),
+                fontSize: deviceType == DeviceType.desktop ? 14 : 12,
                 color: AppColors.textSecondary,
               ),
             ),
             trailing: isSelected
-                ? const Icon(
+                ? Icon(
                     CupertinoIcons.checkmark_circle,
                     color: AppColors.primary,
+                    size: deviceType == DeviceType.desktop ? 28 : 24,
                   )
                 : null,
             onTap: () {

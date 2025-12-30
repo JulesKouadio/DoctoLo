@@ -1,8 +1,10 @@
+import 'dart:io' show Platform;
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/foundation.dart';
 import '../../firebase_options.dart';
 
 class FirebaseService {
@@ -143,10 +145,42 @@ class FirebaseService {
   Future<UserCredential> signInWithEmail(String email, String password) async {
     print('🔐 FirebaseService.signInWithEmail called');
     print('   Email: $email');
-    return await auth.signInWithEmailAndPassword(
-      email: email,
-      password: password,
+    print('   Platform: ${defaultTargetPlatform.name}');
+    print('   Firebase App initialized: ${Firebase.apps.isNotEmpty}');
+    print(
+      '   Firebase App name: ${Firebase.apps.isNotEmpty ? Firebase.apps.first.name : "none"}',
     );
+
+    try {
+      print('   Calling auth.signInWithEmailAndPassword...');
+      final result = await auth.signInWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+      print('   ✅ Sign in successful! User: ${result.user?.uid}');
+      return result;
+    } on FirebaseAuthException catch (e) {
+      print('   ❌ FirebaseAuthException: ${e.code} - ${e.message}');
+      // Sur macOS, si c'est une erreur de keychain, on réessaie sans persistence
+      if (e.code == 'keychain-error' && !kIsWeb && Platform.isMacOS) {
+        print('   🍎 Keychain error on macOS - retrying with workaround...');
+        // Forcer une déconnexion pour nettoyer le state
+        try {
+          await auth.signOut();
+        } catch (_) {}
+        // Réessayer
+        final result = await auth.signInWithEmailAndPassword(
+          email: email,
+          password: password,
+        );
+        print('   ✅ Sign in successful after retry! User: ${result.user?.uid}');
+        return result;
+      }
+      rethrow;
+    } catch (e) {
+      print('   ❌ Error in signInWithEmail: $e');
+      rethrow;
+    }
   }
 
   Future<UserCredential> signUpWithEmail(String email, String password) async {

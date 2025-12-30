@@ -4,7 +4,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../bloc/auth_bloc.dart';
 import '../../../../core/theme/app_colors.dart';
-import '../../../../core/utils/size_config.dart';
+import '../../../../core/utils/responsive.dart';
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/l10n/app_localizations.dart';
 import 'professional_verification_page.dart';
@@ -144,275 +144,417 @@ class _RegisterPageState extends State<RegisterPage> {
         builder: (context, state) {
           final isLoading = state is AuthLoading;
           final l10n = AppLocalizations.of(context)!;
+          final deviceType = context.deviceType;
+          final adaptive = AdaptiveValues(context);
 
           return SafeArea(
-            child: SingleChildScrollView(
-              padding: EdgeInsets.all(getProportionateScreenWidth(24.0)),
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    // Title
-                    Text(
-                      l10n.createAccount,
-                      style: Theme.of(context).textTheme.displaySmall?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.primary,
-                      ),
+            child: Center(
+              child: SingleChildScrollView(
+                padding: EdgeInsets.all(
+                  adaptive.spacing(mobile: 24, tablet: 32, desktop: 48),
+                ),
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(
+                      maxWidth: adaptive.maxFormWidth,
                     ),
-                    const SizedBox(height: 8),
-                    Text(
-                      l10n.joinDoctolo,
-                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                    const SizedBox(height: 32),
-
-                    // Role Selection
-                    Text(
-                      l10n.iAmA,
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _RoleCard(
-                            title: l10n.patient,
-                            icon: CupertinoIcons.person,
-                            isSelected:
-                                _selectedRole == AppConstants.rolePatient,
-                            onTap: () {
-                              setState(() {
-                                _selectedRole = AppConstants.rolePatient;
-                              });
-                            },
+                    child: Form(
+                      key: _formKey,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          // Title
+                          Text(
+                            l10n.createAccount,
+                            style: Theme.of(context).textTheme.displaySmall
+                                ?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.primary,
+                                  fontSize: deviceType == DeviceType.desktop
+                                      ? 32
+                                      : null,
+                                ),
                           ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: _RoleCard(
-                            title: l10n.doctor,
-                            icon: CupertinoIcons.bag_badge_plus,
-                            isSelected:
-                                _selectedRole == AppConstants.roleDoctor,
-                            onTap: () {
-                              setState(() {
-                                _selectedRole = AppConstants.roleDoctor;
-                              });
-                            },
+                          SizedBox(
+                            height: adaptive.spacing(mobile: 8, desktop: 12),
                           ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 24),
-
-                    // First Name
-                    TextFormField(
-                      controller: _firstNameController,
-                      textCapitalization: TextCapitalization.words,
-                      textInputAction: TextInputAction.next,
-                      decoration: InputDecoration(
-                        labelText: l10n.firstName,
-                        prefixIcon: const Icon(CupertinoIcons.person),
-                      ),
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return l10n.firstName;
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Last Name
-                    TextFormField(
-                      controller: _lastNameController,
-                      textCapitalization: TextCapitalization.words,
-                      textInputAction: TextInputAction.next,
-                      decoration: InputDecoration(
-                        labelText: l10n.lastName,
-                        prefixIcon: const Icon(CupertinoIcons.person),
-                      ),
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return l10n.lastName;
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Email
-                    TextFormField(
-                      controller: _emailController,
-                      keyboardType: TextInputType.emailAddress,
-                      textInputAction: TextInputAction.next,
-                      decoration: InputDecoration(
-                        labelText: l10n.email,
-                        hintText: 'exemple@email.com',
-                        prefixIcon: const Icon(CupertinoIcons.mail),
-                      ),
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return l10n.email;
-                        }
-                        if (!RegExp(
-                          r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$',
-                        ).hasMatch(value)) {
-                          return l10n.email;
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Phone
-                    TextFormField(
-                      controller: _phoneController,
-                      keyboardType: TextInputType.phone,
-                      textInputAction: TextInputAction.next,
-                      decoration: InputDecoration(
-                        labelText: l10n.phoneNumber,
-                        hintText: '+33 6 12 34 56 78',
-                        prefixIcon: const Icon(CupertinoIcons.phone),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Password
-                    TextFormField(
-                      controller: _passwordController,
-                      obscureText: _obscurePassword,
-                      textInputAction: TextInputAction.next,
-                      decoration: InputDecoration(
-                        labelText: l10n.password,
-                        hintText: '••••••••',
-                        prefixIcon: const Icon(CupertinoIcons.lock),
-                        suffixIcon: IconButton(
-                          icon: Icon(
-                            _obscurePassword
-                                ? CupertinoIcons.eye
-                                : CupertinoIcons.eye_slash,
+                          Text(
+                            l10n.joinDoctolo,
+                            style: Theme.of(context).textTheme.bodyLarge
+                                ?.copyWith(
+                                  color: AppColors.textSecondary,
+                                  fontSize: deviceType == DeviceType.desktop
+                                      ? 18
+                                      : null,
+                                ),
                           ),
-                          onPressed: () {
-                            setState(() {
-                              _obscurePassword = !_obscurePassword;
-                            });
-                          },
-                        ),
-                      ),
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return l10n.password;
-                        }
-                        if (value.length < 6) {
-                          return l10n.password;
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Confirm Password
-                    TextFormField(
-                      controller: _confirmPasswordController,
-                      obscureText: _obscureConfirmPassword,
-                      textInputAction: TextInputAction.done,
-                      onFieldSubmitted: (_) => _handleRegister(),
-                      decoration: InputDecoration(
-                        labelText: l10n.confirmPassword,
-                        hintText: '••••••••',
-                        prefixIcon: const Icon(CupertinoIcons.lock),
-                        suffixIcon: IconButton(
-                          icon: Icon(
-                            _obscureConfirmPassword
-                                ? CupertinoIcons.eye
-                                : CupertinoIcons.eye_slash,
-                          ),
-                          onPressed: () {
-                            setState(() {
-                              _obscureConfirmPassword =
-                                  !_obscureConfirmPassword;
-                            });
-                          },
-                        ),
-                      ),
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return l10n.confirmPassword;
-                        }
-                        if (value != _passwordController.text) {
-                          return l10n.confirmPassword;
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Terms and Conditions
-                    Row(
-                      children: [
-                        Checkbox(
-                          value: _acceptTerms,
-                          onChanged: (value) {
-                            setState(() {
-                              _acceptTerms = value ?? false;
-                            });
-                          },
-                        ),
-                        Expanded(
-                          child: GestureDetector(
-                            onTap: () {
-                              setState(() {
-                                _acceptTerms = !_acceptTerms;
-                              });
-                            },
-                            child: Text(
-                              l10n.acceptTerms,
-                              style: Theme.of(context).textTheme.bodyMedium,
+                          SizedBox(
+                            height: adaptive.spacing(
+                              mobile: 32,
+                              tablet: 40,
+                              desktop: 48,
                             ),
                           ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 24),
 
-                    // Register Button
-                    ElevatedButton(
-                      onPressed: isLoading ? null : _handleRegister,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primary,
-                        foregroundColor: Colors.white,
-                        padding: EdgeInsets.symmetric(vertical: getProportionateScreenHeight(16)),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      child: isLoading
-                          ? const SizedBox(
-                              height: 20,
-                              width: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                valueColor: AlwaysStoppedAnimation<Color>(
-                                  Colors.white,
+                          // Role Selection
+                          Text(
+                            l10n.iAmA,
+                            style: Theme.of(context).textTheme.titleMedium
+                                ?.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: deviceType == DeviceType.desktop
+                                      ? 18
+                                      : null,
+                                ),
+                          ),
+                          SizedBox(
+                            height: adaptive.spacing(mobile: 12, desktop: 16),
+                          ),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _RoleCard(
+                                  title: l10n.patient,
+                                  icon: CupertinoIcons.person,
+                                  isSelected:
+                                      _selectedRole == AppConstants.rolePatient,
+                                  onTap: () {
+                                    setState(() {
+                                      _selectedRole = AppConstants.rolePatient;
+                                    });
+                                  },
+                                  deviceType: deviceType,
                                 ),
                               ),
-                            )
-                          : Text(
-                              l10n.register,
-                              style: TextStyle(
-                                fontSize: getProportionateScreenHeight(16),
-                                fontWeight: FontWeight.w600,
+                              SizedBox(
+                                width: adaptive.spacing(
+                                  mobile: 12,
+                                  desktop: 16,
+                                ),
+                              ),
+                              Expanded(
+                                child: _RoleCard(
+                                  title: l10n.doctor,
+                                  icon: CupertinoIcons.bag_badge_plus,
+                                  isSelected:
+                                      _selectedRole == AppConstants.roleDoctor,
+                                  onTap: () {
+                                    setState(() {
+                                      _selectedRole = AppConstants.roleDoctor;
+                                    });
+                                  },
+                                  deviceType: deviceType,
+                                ),
+                              ),
+                            ],
+                          ),
+                          SizedBox(
+                            height: adaptive.spacing(mobile: 24, desktop: 32),
+                          ),
+
+                          // First Name
+                          TextFormField(
+                            controller: _firstNameController,
+                            textCapitalization: TextCapitalization.words,
+                            textInputAction: TextInputAction.next,
+                            style: TextStyle(
+                              fontSize: deviceType == DeviceType.desktop
+                                  ? 16
+                                  : 14,
+                            ),
+                            decoration: InputDecoration(
+                              labelText: l10n.firstName,
+                              prefixIcon: const Icon(CupertinoIcons.person),
+                              contentPadding: EdgeInsets.symmetric(
+                                vertical: deviceType == DeviceType.desktop
+                                    ? 20
+                                    : 16,
+                                horizontal: 16,
                               ),
                             ),
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return l10n.firstName;
+                              }
+                              return null;
+                            },
+                          ),
+                          SizedBox(
+                            height: adaptive.spacing(mobile: 16, desktop: 20),
+                          ),
+
+                          // Last Name
+                          TextFormField(
+                            controller: _lastNameController,
+                            textCapitalization: TextCapitalization.words,
+                            textInputAction: TextInputAction.next,
+                            style: TextStyle(
+                              fontSize: deviceType == DeviceType.desktop
+                                  ? 16
+                                  : 14,
+                            ),
+                            decoration: InputDecoration(
+                              labelText: l10n.lastName,
+                              prefixIcon: const Icon(CupertinoIcons.person),
+                              contentPadding: EdgeInsets.symmetric(
+                                vertical: deviceType == DeviceType.desktop
+                                    ? 20
+                                    : 16,
+                                horizontal: 16,
+                              ),
+                            ),
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return l10n.lastName;
+                              }
+                              return null;
+                            },
+                          ),
+                          SizedBox(
+                            height: adaptive.spacing(mobile: 16, desktop: 20),
+                          ),
+
+                          // Email
+                          TextFormField(
+                            controller: _emailController,
+                            keyboardType: TextInputType.emailAddress,
+                            textInputAction: TextInputAction.next,
+                            style: TextStyle(
+                              fontSize: deviceType == DeviceType.desktop
+                                  ? 16
+                                  : 14,
+                            ),
+                            decoration: InputDecoration(
+                              labelText: l10n.email,
+                              hintText: 'exemple@email.com',
+                              prefixIcon: const Icon(CupertinoIcons.mail),
+                              contentPadding: EdgeInsets.symmetric(
+                                vertical: deviceType == DeviceType.desktop
+                                    ? 20
+                                    : 16,
+                                horizontal: 16,
+                              ),
+                            ),
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return l10n.email;
+                              }
+                              if (!RegExp(
+                                r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$',
+                              ).hasMatch(value)) {
+                                return l10n.email;
+                              }
+                              return null;
+                            },
+                          ),
+                          SizedBox(
+                            height: adaptive.spacing(mobile: 16, desktop: 20),
+                          ),
+
+                          // Phone
+                          TextFormField(
+                            controller: _phoneController,
+                            keyboardType: TextInputType.phone,
+                            textInputAction: TextInputAction.next,
+                            style: TextStyle(
+                              fontSize: deviceType == DeviceType.desktop
+                                  ? 16
+                                  : 14,
+                            ),
+                            decoration: InputDecoration(
+                              labelText: l10n.phoneNumber,
+                              hintText: '+33 6 12 34 56 78',
+                              prefixIcon: const Icon(CupertinoIcons.phone),
+                              contentPadding: EdgeInsets.symmetric(
+                                vertical: deviceType == DeviceType.desktop
+                                    ? 20
+                                    : 16,
+                                horizontal: 16,
+                              ),
+                            ),
+                          ),
+                          SizedBox(
+                            height: adaptive.spacing(mobile: 16, desktop: 20),
+                          ),
+
+                          // Password
+                          TextFormField(
+                            controller: _passwordController,
+                            obscureText: _obscurePassword,
+                            textInputAction: TextInputAction.next,
+                            style: TextStyle(
+                              fontSize: deviceType == DeviceType.desktop
+                                  ? 16
+                                  : 14,
+                            ),
+                            decoration: InputDecoration(
+                              labelText: l10n.password,
+                              hintText: '••••••••',
+                              prefixIcon: const Icon(CupertinoIcons.lock),
+                              contentPadding: EdgeInsets.symmetric(
+                                vertical: deviceType == DeviceType.desktop
+                                    ? 20
+                                    : 16,
+                                horizontal: 16,
+                              ),
+                              suffixIcon: IconButton(
+                                icon: Icon(
+                                  _obscurePassword
+                                      ? CupertinoIcons.eye
+                                      : CupertinoIcons.eye_slash,
+                                ),
+                                onPressed: () {
+                                  setState(() {
+                                    _obscurePassword = !_obscurePassword;
+                                  });
+                                },
+                              ),
+                            ),
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return l10n.password;
+                              }
+                              if (value.length < 6) {
+                                return l10n.password;
+                              }
+                              return null;
+                            },
+                          ),
+                          SizedBox(
+                            height: adaptive.spacing(mobile: 16, desktop: 20),
+                          ),
+
+                          // Confirm Password
+                          TextFormField(
+                            controller: _confirmPasswordController,
+                            obscureText: _obscureConfirmPassword,
+                            textInputAction: TextInputAction.done,
+                            onFieldSubmitted: (_) => _handleRegister(),
+                            style: TextStyle(
+                              fontSize: deviceType == DeviceType.desktop
+                                  ? 16
+                                  : 14,
+                            ),
+                            decoration: InputDecoration(
+                              labelText: l10n.confirmPassword,
+                              hintText: '••••••••',
+                              prefixIcon: const Icon(CupertinoIcons.lock),
+                              contentPadding: EdgeInsets.symmetric(
+                                vertical: deviceType == DeviceType.desktop
+                                    ? 20
+                                    : 16,
+                                horizontal: 16,
+                              ),
+                              suffixIcon: IconButton(
+                                icon: Icon(
+                                  _obscureConfirmPassword
+                                      ? CupertinoIcons.eye
+                                      : CupertinoIcons.eye_slash,
+                                ),
+                                onPressed: () {
+                                  setState(() {
+                                    _obscureConfirmPassword =
+                                        !_obscureConfirmPassword;
+                                  });
+                                },
+                              ),
+                            ),
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return l10n.confirmPassword;
+                              }
+                              if (value != _passwordController.text) {
+                                return l10n.confirmPassword;
+                              }
+                              return null;
+                            },
+                          ),
+                          SizedBox(
+                            height: adaptive.spacing(mobile: 16, desktop: 20),
+                          ),
+
+                          // Terms and Conditions
+                          Row(
+                            children: [
+                              Checkbox(
+                                value: _acceptTerms,
+                                onChanged: (value) {
+                                  setState(() {
+                                    _acceptTerms = value ?? false;
+                                  });
+                                },
+                              ),
+                              Expanded(
+                                child: GestureDetector(
+                                  onTap: () {
+                                    setState(() {
+                                      _acceptTerms = !_acceptTerms;
+                                    });
+                                  },
+                                  child: Text(
+                                    l10n.acceptTerms,
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .bodyMedium
+                                        ?.copyWith(
+                                          fontSize:
+                                              deviceType == DeviceType.desktop
+                                              ? 15
+                                              : null,
+                                        ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          SizedBox(
+                            height: adaptive.spacing(mobile: 24, desktop: 32),
+                          ),
+
+                          // Register Button
+                          ElevatedButton(
+                            onPressed: isLoading ? null : _handleRegister,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.primary,
+                              foregroundColor: Colors.white,
+                              padding: EdgeInsets.symmetric(
+                                vertical: deviceType == DeviceType.desktop
+                                    ? 18
+                                    : 16,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                            child: isLoading
+                                ? SizedBox(
+                                    height: deviceType == DeviceType.desktop
+                                        ? 22
+                                        : 20,
+                                    width: deviceType == DeviceType.desktop
+                                        ? 22
+                                        : 20,
+                                    child: const CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      valueColor: AlwaysStoppedAnimation<Color>(
+                                        Colors.white,
+                                      ),
+                                    ),
+                                  )
+                                : Text(
+                                    l10n.register,
+                                    style: TextStyle(
+                                      fontSize: deviceType == DeviceType.desktop
+                                          ? 17
+                                          : 16,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                          ),
+                        ],
+                      ),
                     ),
-                  ],
+                  ),
                 ),
               ),
             ),
@@ -428,12 +570,14 @@ class _RoleCard extends StatelessWidget {
   final IconData icon;
   final bool isSelected;
   final VoidCallback onTap;
+  final DeviceType deviceType;
 
   const _RoleCard({
     required this.title,
     required this.icon,
     required this.isSelected,
     required this.onTap,
+    required this.deviceType,
   });
 
   @override
@@ -441,7 +585,9 @@ class _RoleCard extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: EdgeInsets.symmetric(vertical: getProportionateScreenHeight(20)),
+        padding: EdgeInsets.symmetric(
+          vertical: deviceType == DeviceType.desktop ? 24 : 20,
+        ),
         decoration: BoxDecoration(
           color: isSelected
               ? AppColors.primary.withOpacity(0.1)
@@ -456,14 +602,14 @@ class _RoleCard extends StatelessWidget {
           children: [
             Icon(
               icon,
-              size: 32,
+              size: deviceType == DeviceType.desktop ? 40 : 32,
               color: isSelected ? AppColors.primary : AppColors.textSecondary,
             ),
-            const SizedBox(height: 8),
+            SizedBox(height: deviceType == DeviceType.desktop ? 12 : 8),
             Text(
               title,
               style: TextStyle(
-                fontSize: getProportionateScreenHeight(14),
+                fontSize: deviceType == DeviceType.desktop ? 16 : 14,
                 fontWeight: FontWeight.w600,
                 color: isSelected ? AppColors.primary : AppColors.textSecondary,
               ),

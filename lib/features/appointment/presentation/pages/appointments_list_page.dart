@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/l10n/app_localizations.dart';
 import '../../../../core/utils/size_config.dart';
+import '../../../../core/utils/responsive.dart' hide ResponsiveLayout;
 import '../../../../shared/widgets/responsive_layout.dart';
 import '../../../../shared/widgets/currency_widgets.dart';
 import 'package:intl/intl.dart';
@@ -514,36 +515,32 @@ class _AppointmentCard extends StatelessWidget {
   }
 
   void _showAppointmentDetails(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) => DraggableScrollableSheet(
-        initialChildSize: 0.7,
-        minChildSize: 0.5,
-        maxChildSize: 0.9,
-        expand: false,
-        builder: (context, scrollController) {
-          final date = (appointment['date'] as Timestamp).toDate();
-          final dateFormatter = DateFormat('EEEE d MMMM yyyy', 'fr_FR');
-          final formattedDate = dateFormatter.format(date);
-          final status = appointment['status'] as String;
-          final type = appointment['type'] as String;
-          final timeSlot = appointment['timeSlot'] as String;
-          final fee = appointment['fee'] as double;
-          final name = isDoctorView
-              ? appointment['patientName']
-              : 'Dr. ${appointment['doctorName']}';
-          final specialty = appointment['specialty'] as String? ?? '';
-          final reason = appointment['reason'] as String? ?? '';
+    final date = (appointment['date'] as Timestamp).toDate();
+    final dateFormatter = DateFormat('EEEE d MMMM yyyy', 'fr_FR');
+    final formattedDate = dateFormatter.format(date);
+    final status = appointment['status'] as String;
+    final type = appointment['type'] as String;
+    final timeSlot = appointment['timeSlot'] as String;
+    final fee = appointment['fee'] as double;
+    final name = isDoctorView
+        ? appointment['patientName']
+        : 'Dr. ${appointment['doctorName']}';
+    final specialty = appointment['specialty'] as String? ?? '';
+    final reason = appointment['reason'] as String? ?? '';
 
-          return ListView(
-            controller: scrollController,
-            padding: EdgeInsets.all(getProportionateScreenWidth(24)),
-            children: [
-              // Handle
+    showAdaptiveSheet(
+      context: context,
+      initialChildSize: 0.7,
+      minChildSize: 0.5,
+      maxChildSize: 0.9,
+      dialogWidth: 550,
+      builder: (context, scrollController) {
+        return ListView(
+          controller: scrollController,
+          padding: EdgeInsets.all(getProportionateScreenWidth(24)),
+          children: [
+            // Handle (seulement sur mobile)
+            if (scrollController != null)
               Center(
                 child: Container(
                   width: 40,
@@ -554,106 +551,105 @@ class _AppointmentCard extends StatelessWidget {
                   ),
                 ),
               ),
-              const SizedBox(height: 24),
+            const SizedBox(height: 24),
 
-              // Titre
+            // Titre
+            Text(
+              'Détails du rendez-vous',
+              style: Theme.of(context).textTheme.headlineSmall,
+            ),
+            const SizedBox(height: 24),
+
+            // Informations principales
+            _DetailItem(
+              icon: CupertinoIcons.person,
+              label: isDoctorView ? 'Patient' : 'Médecin',
+              value: name,
+            ),
+            if (specialty.isNotEmpty)
+              _DetailItem(
+                icon: CupertinoIcons.bag_badge_plus,
+                label: 'Spécialité',
+                value: specialty,
+              ),
+            _DetailItem(
+              icon: CupertinoIcons.calendar,
+              label: 'Date',
+              value: formattedDate,
+            ),
+            _DetailItem(
+              icon: CupertinoIcons.clock,
+              label: 'Heure',
+              value: timeSlot,
+            ),
+            _DetailItem(
+              icon: _getTypeIcon(type),
+              label: 'Type',
+              value: _getTypeLabel(type),
+            ),
+            _DetailItemWithCurrency(
+              icon: CupertinoIcons.money_dollar,
+              label: 'Tarif',
+              amount: fee,
+            ),
+            _DetailItem(
+              icon: CupertinoIcons.info_circle,
+              label: 'Statut',
+              value: _getStatusLabel(status),
+              valueColor: _getStatusColor(status),
+            ),
+            if (reason.isNotEmpty) ...[
+              const SizedBox(height: 16),
               Text(
-                'Détails du rendez-vous',
-                style: Theme.of(context).textTheme.headlineSmall,
-              ),
-              const SizedBox(height: 24),
-
-              // Informations principales
-              _DetailItem(
-                icon: CupertinoIcons.person,
-                label: isDoctorView ? 'Patient' : 'Médecin',
-                value: name,
-              ),
-              if (specialty.isNotEmpty)
-                _DetailItem(
-                  icon: CupertinoIcons.bag_badge_plus,
-                  label: 'Spécialité',
-                  value: specialty,
+                'Motif de consultation',
+                style: TextStyle(
+                  fontSize: getProportionateScreenHeight(16),
+                  fontWeight: FontWeight.bold,
                 ),
-              _DetailItem(
-                icon: CupertinoIcons.calendar,
-                label: 'Date',
-                value: formattedDate,
               ),
-              _DetailItem(
-                icon: CupertinoIcons.clock,
-                label: 'Heure',
-                value: timeSlot,
-              ),
-              _DetailItem(
-                icon: _getTypeIcon(type),
-                label: 'Type',
-                value: _getTypeLabel(type),
-              ),
-              _DetailItemWithCurrency(
-                icon: CupertinoIcons.money_dollar,
-                label: 'Tarif',
-                amount: fee,
-              ),
-              _DetailItem(
-                icon: CupertinoIcons.info_circle,
-                label: 'Statut',
-                value: _getStatusLabel(status),
-                valueColor: _getStatusColor(status),
-              ),
-              if (reason.isNotEmpty) ...[
-                const SizedBox(height: 16),
-                Text(
-                  'Motif de consultation',
-                  style: TextStyle(
-                    fontSize: getProportionateScreenHeight(16),
-                    fontWeight: FontWeight.bold,
-                  ),
+              const SizedBox(height: 8),
+              Container(
+                padding: EdgeInsets.all(getProportionateScreenWidth(12)),
+                decoration: BoxDecoration(
+                  color: Colors.grey[100],
+                  borderRadius: BorderRadius.circular(12),
                 ),
-                const SizedBox(height: 8),
-                Container(
-                  padding: EdgeInsets.all(getProportionateScreenWidth(12)),
-                  decoration: BoxDecoration(
-                    color: Colors.grey[100],
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Text(reason),
-                ),
-              ],
-
-              // Bouton de démarrage de la téléconsultation
-              if (status == 'scheduled' && _isTelemedicine(type)) ...[
-                const SizedBox(height: 24),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    onPressed: () {
-                      Navigator.pop(context);
-                      _startVideoCall(context);
-                    },
-                    icon: const Icon(CupertinoIcons.videocam),
-                    label: Text(
-                      isDoctorView
-                          ? 'Démarrer la téléconsultation'
-                          : 'Rejoindre la téléconsultation',
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primary,
-                      foregroundColor: Colors.white,
-                      padding: EdgeInsets.symmetric(
-                        vertical: getProportionateScreenHeight(16),
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
+                child: Text(reason),
+              ),
             ],
-          );
-        },
-      ),
+
+            // Bouton de démarrage de la téléconsultation
+            if (status == 'scheduled' && _isTelemedicine(type)) ...[
+              const SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    _startVideoCall(context);
+                  },
+                  icon: const Icon(CupertinoIcons.videocam),
+                  label: Text(
+                    isDoctorView
+                        ? 'Démarrer la téléconsultation'
+                        : 'Rejoindre la téléconsultation',
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                    padding: EdgeInsets.symmetric(
+                      vertical: getProportionateScreenHeight(16),
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ],
+        );
+      },
     );
   }
 

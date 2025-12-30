@@ -7,6 +7,7 @@ import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/size_config.dart';
+import '../../../../core/utils/responsive.dart';
 import '../../../../core/l10n/app_localizations.dart';
 import '../../../../core/services/hive_service.dart';
 import '../../../auth/presentation/bloc/auth_bloc.dart';
@@ -48,6 +49,20 @@ class _DoctorHomePageState extends State<DoctorHomePage> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
+
+    // Sur desktop, utiliser une navigation latérale au lieu de la barre du bas
+    if (context.isDesktop) {
+      return Scaffold(
+        body: Row(
+          children: [
+            _buildNavigationRail(context, l10n),
+            const VerticalDivider(width: 1),
+            Expanded(child: _pages[_currentIndex]),
+          ],
+        ),
+      );
+    }
+
     return Scaffold(
       body: _pages[_currentIndex],
       bottomNavigationBar: BottomNavigationBar(
@@ -88,6 +103,86 @@ class _DoctorHomePageState extends State<DoctorHomePage> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildNavigationRail(BuildContext context, AppLocalizations l10n) {
+    return NavigationRail(
+      selectedIndex: _currentIndex,
+      onDestinationSelected: (index) {
+        setState(() {
+          _currentIndex = index;
+        });
+      },
+      labelType: NavigationRailLabelType.all,
+      backgroundColor: Colors.white,
+      indicatorColor: AppColors.primary.withOpacity(0.15),
+      selectedIconTheme: const IconThemeData(color: AppColors.primary),
+      unselectedIconTheme: IconThemeData(color: Colors.grey[600]),
+      selectedLabelTextStyle: const TextStyle(
+        color: AppColors.primary,
+        fontWeight: FontWeight.w600,
+        fontSize: 12,
+      ),
+      unselectedLabelTextStyle: TextStyle(
+        color: Colors.grey[600],
+        fontWeight: FontWeight.normal,
+        fontSize: 12,
+      ),
+      leading: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 16),
+        child: Column(
+          children: [
+            Container(
+              height: 48,
+              width: 48,
+              decoration: const BoxDecoration(shape: BoxShape.circle),
+              child: ClipOval(
+                child: Image.asset(
+                  'assets/images/doctolo_icon.png',
+                  fit: BoxFit.cover,
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'DoctoLo',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: AppColors.primary,
+                fontSize: 14,
+              ),
+            ),
+          ],
+        ),
+      ),
+      destinations: [
+        NavigationRailDestination(
+          icon: const Icon(CupertinoIcons.square_grid_2x2),
+          selectedIcon: const Icon(CupertinoIcons.square_grid_2x2_fill),
+          label: Text(l10n.dashboard),
+        ),
+        NavigationRailDestination(
+          icon: const Icon(CupertinoIcons.calendar),
+          selectedIcon: const Icon(CupertinoIcons.calendar),
+          label: Text(l10n.agenda),
+        ),
+        NavigationRailDestination(
+          icon: const Icon(CupertinoIcons.person_2),
+          selectedIcon: const Icon(CupertinoIcons.person_2_fill),
+          label: Text(l10n.patients),
+        ),
+        NavigationRailDestination(
+          icon: const Icon(CupertinoIcons.chat_bubble_fill),
+          selectedIcon: const Icon(CupertinoIcons.chat_bubble_fill),
+          label: Text(l10n.messages),
+        ),
+        NavigationRailDestination(
+          icon: const Icon(CupertinoIcons.person),
+          selectedIcon: const Icon(CupertinoIcons.person),
+          label: Text(l10n.profile),
+        ),
+      ],
     );
   }
 }
@@ -483,6 +578,8 @@ class _DashboardPageState extends State<_DashboardPage> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
+    final isDesktop = context.isDesktop;
+
     return BlocBuilder<AuthBloc, AuthState>(
       builder: (context, state) {
         UserModel? user;
@@ -490,6 +587,12 @@ class _DashboardPageState extends State<_DashboardPage> {
           user = state.user;
         }
 
+        // Si desktop, utiliser le nouveau layout
+        if (isDesktop) {
+          return _buildDesktopLayout(context, l10n, user);
+        }
+
+        // Layout mobile
         return CustomScrollView(
           slivers: [
             // App Bar
@@ -932,6 +1035,520 @@ class _DashboardPageState extends State<_DashboardPage> {
       },
     );
   }
+
+  // ===== LAYOUT DESKTOP =====
+
+  // SOLUTION : Remplacez la méthode _buildDesktopLayout par celle-ci
+
+  Widget _buildDesktopLayout(
+    BuildContext context,
+    AppLocalizations l10n,
+    UserModel? user,
+  ) {
+    return CustomScrollView(
+      slivers: [
+        // Header Desktop - VERSION CORRIGÉE
+        SliverAppBar(
+          floating: true,
+          backgroundColor: Colors.white,
+          elevation: 0,
+          toolbarHeight: 80, // Remplace expandedHeight
+          title: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      '${l10n.welcomeBack} Dr. ${user?.lastName ?? ''}',
+                      style: const TextStyle(
+                        fontSize: 28,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      DateFormat(
+                        'EEEE d MMMM yyyy',
+                        'fr_FR',
+                      ).format(DateTime.now()),
+                      style: TextStyle(
+                        fontSize: 15,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+                Row(
+                  children: [
+                    IconButton(
+                      icon: const Icon(CupertinoIcons.bell),
+                      iconSize: 24,
+                      onPressed: () {},
+                    ),
+                    const SizedBox(width: 8),
+                    CircleAvatar(
+                      radius: 22,
+                      backgroundColor: AppColors.primary.withOpacity(0.1),
+                      child: Text(
+                        user?.lastName.substring(0, 1).toUpperCase() ?? 'D',
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+
+        // Contenu (reste identique)
+        SliverPadding(
+          padding: const EdgeInsets.all(32),
+          sliver: SliverList(
+            delegate: SliverChildListDelegate([
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Colonne gauche (70%)
+                  Expanded(
+                    flex: 2,
+                    child: Column(
+                      children: [
+                        // Stats 2x2
+                        GridView.count(
+                          shrinkWrap: true,
+                          crossAxisCount: 2,
+                          mainAxisSpacing: 16,
+                          crossAxisSpacing: 16,
+                          childAspectRatio: 2.5,
+                          physics: const NeverScrollableScrollPhysics(),
+                          children: [
+                            _DesktopStatCard(
+                              icon: CupertinoIcons.person_2_fill,
+                              title: l10n.patients,
+                              value: _isLoading ? '...' : '$_totalPatients',
+                              subtitle: 'Patients actifs',
+                              color: AppColors.primary,
+                              onTap: () => Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => const PatientsListPage(),
+                                ),
+                              ),
+                            ),
+                            _DesktopStatCard(
+                              icon: CupertinoIcons.calendar,
+                              title: l10n.today,
+                              value: _isLoading ? '...' : '$_todayAppointments',
+                              subtitle: 'Rendez-vous',
+                              color: AppColors.secondary,
+                              onTap: () => Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => const AgendaPage(),
+                                ),
+                              ),
+                            ),
+                            _DesktopStatCard(
+                              icon: CupertinoIcons.clock,
+                              title: l10n.waiting,
+                              value: _isLoading
+                                  ? '...'
+                                  : '$_waitingAppointments',
+                              subtitle: 'En attente',
+                              color: AppColors.warning,
+                              onTap: () {},
+                            ),
+                            _DesktopStatCard(
+                              iconWidget: const CurrencyIcon(
+                                size: 28,
+                                color: AppColors.accent,
+                              ),
+                              title: l10n.revenue,
+                              value: _isLoading
+                                  ? '...'
+                                  : _formatRevenue(_monthlyRevenue),
+                              subtitle: 'Ce mois',
+                              color: AppColors.accent,
+                              onTap: () {},
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 32),
+
+                        // Rendez-vous du jour
+                        _buildDesktopSection(
+                          title: l10n.todaysAppointments,
+                          actionText: l10n.viewAgenda,
+                          onActionTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const AgendaPage(),
+                            ),
+                          ),
+                          child: _buildTodayAppointments(user),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 24),
+
+                  // Colonne droite (30%)
+                  Expanded(
+                    flex: 1,
+                    child: Column(
+                      children: [
+                        // Actions rapides
+                        _buildDesktopSection(
+                          title: 'Actions rapides',
+                          child: Column(
+                            children: [
+                              _DesktopQuickActionCard(
+                                icon: CupertinoIcons.add_circled_solid,
+                                title: l10n.newPatient,
+                                subtitle: 'Enregistrer un nouveau patient',
+                                color: AppColors.primary,
+                                onTap: () =>
+                                    _showNewPatientDialog(context, user),
+                              ),
+                              const SizedBox(height: 12),
+                              _DesktopQuickActionCard(
+                                icon: CupertinoIcons.videocam_fill,
+                                title: l10n.telemedicine,
+                                subtitle: 'Démarrer une téléconsultation',
+                                color: AppColors.secondary,
+                                onTap: () =>
+                                    _startNextTeleconsultation(context, user),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+
+                        // Patients récents
+                        _buildDesktopSection(
+                          title: l10n.recentPatients,
+                          actionText: l10n.viewAll,
+                          onActionTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const PatientsListPage(),
+                            ),
+                          ),
+                          child: _buildRecentPatients(user),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ]),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDesktopSection({
+    required String title,
+    String? actionText,
+    VoidCallback? onActionTap,
+    required Widget child,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              title,
+              style: const TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: AppColors.textSecondary,
+              ),
+            ),
+            if (actionText != null && onActionTap != null)
+              TextButton(
+                onPressed: onActionTap,
+                child: Text(actionText, style: const TextStyle(fontSize: 14)),
+              ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        child,
+      ],
+    );
+  }
+
+  // StreamBuilder pour les rendez-vous (Desktop)
+  Widget _buildTodayAppointments(UserModel? user) {
+    if (user == null) return const SizedBox();
+
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('appointments')
+          .where('doctorId', isEqualTo: user.id)
+          .where('status', isEqualTo: 'scheduled')
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(
+            child: Padding(
+              padding: EdgeInsets.all(24),
+              child: CircularProgressIndicator(),
+            ),
+          );
+        }
+
+        if (!snapshot.hasData) {
+          return _buildEmptyState(
+            icon: CupertinoIcons.calendar,
+            message: 'Aucun rendez-vous',
+          );
+        }
+
+        final now = DateTime.now();
+        final todayStart = DateTime(now.year, now.month, now.day);
+        final todayEnd = DateTime(now.year, now.month, now.day, 23, 59, 59);
+
+        final todayAppointments = snapshot.data!.docs.where((doc) {
+          final appointment = doc.data() as Map<String, dynamic>;
+          final date = (appointment['date'] as Timestamp).toDate();
+          return date.isAfter(todayStart) && date.isBefore(todayEnd);
+        }).toList();
+
+        if (todayAppointments.isEmpty) {
+          return _buildEmptyState(
+            icon: CupertinoIcons.calendar,
+            message: 'Aucun rendez-vous pour aujourd\'hui',
+          );
+        }
+
+        return Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.grey[200]!),
+          ),
+          child: ListView.separated(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: todayAppointments.length,
+            separatorBuilder: (_, __) =>
+                Divider(height: 1, color: Colors.grey[200]),
+            itemBuilder: (context, index) {
+              final doc = todayAppointments[index];
+              final appointment = doc.data() as Map<String, dynamic>;
+              final timeSlot = appointment['timeSlot'] ?? '';
+              final patientName = appointment['patientName'] ?? 'Patient';
+              final type = appointment['type'] ?? 'Consultation';
+              final appointmentId = doc.id;
+
+              return ListTile(
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
+                leading: Container(
+                  width: 56,
+                  height: 56,
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Center(
+                    child: Text(
+                      timeSlot,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                  ),
+                ),
+                title: Text(
+                  patientName,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 15,
+                  ),
+                ),
+                subtitle: Text(
+                  type,
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+                trailing: IconButton(
+                  icon: const Icon(CupertinoIcons.checkmark_circle),
+                  color: AppColors.success,
+                  onPressed: () async {
+                    await FirebaseFirestore.instance
+                        .collection('appointments')
+                        .doc(appointmentId)
+                        .update({'status': 'completed'});
+                  },
+                ),
+              );
+            },
+          ),
+        );
+      },
+    );
+  }
+
+  // StreamBuilder pour les patients (Desktop)
+  Widget _buildRecentPatients(UserModel? user) {
+    if (user == null) return const SizedBox();
+
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('appointments')
+          .where('doctorId', isEqualTo: user.id)
+          .where('status', whereIn: ['scheduled', 'completed'])
+          .orderBy('date', descending: true)
+          .limit(5)
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(
+            child: Padding(
+              padding: EdgeInsets.all(24),
+              child: CircularProgressIndicator(),
+            ),
+          );
+        }
+
+        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+          return _buildEmptyState(
+            icon: CupertinoIcons.person_2,
+            message: 'Aucun patient récent',
+          );
+        }
+
+        final Map<String, Map<String, dynamic>> uniquePatients = {};
+        for (var doc in snapshot.data!.docs) {
+          final appointment = doc.data() as Map<String, dynamic>;
+          final patientId = appointment['patientId'];
+          if (patientId != null && !uniquePatients.containsKey(patientId)) {
+            uniquePatients[patientId] = appointment;
+          }
+        }
+
+        if (uniquePatients.isEmpty) {
+          return _buildEmptyState(
+            icon: CupertinoIcons.person_2,
+            message: 'Aucun patient récent',
+          );
+        }
+
+        return Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.grey[200]!),
+          ),
+          child: ListView.separated(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: uniquePatients.entries.take(4).length,
+            separatorBuilder: (_, __) =>
+                Divider(height: 1, color: Colors.grey[200]),
+            itemBuilder: (context, index) {
+              final entry = uniquePatients.entries.elementAt(index);
+              final patientId = entry.key;
+              final appointment = entry.value;
+              final patientName = appointment['patientName'] ?? 'Patient';
+              final lastVisitDate = (appointment['date'] as Timestamp).toDate();
+              final formattedLastVisit = DateFormat(
+                'dd MMM yyyy',
+                'fr_FR',
+              ).format(lastVisitDate);
+
+              return ListTile(
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
+                leading: CircleAvatar(
+                  backgroundColor: AppColors.primary.withOpacity(0.1),
+                  child: Text(
+                    patientName.substring(0, 1).toUpperCase(),
+                    style: const TextStyle(
+                      color: AppColors.primary,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                title: Text(
+                  patientName,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                  ),
+                ),
+                subtitle: Text(
+                  'Dernière visite: $formattedLastVisit',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+                trailing: const Icon(CupertinoIcons.right_chevron, size: 16),
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => PatientDetailPage(
+                        patientId: patientId,
+                        patientName: patientName,
+                      ),
+                    ),
+                  );
+                },
+              );
+            },
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildEmptyState({required IconData icon, required String message}) {
+    return Container(
+      padding: const EdgeInsets.all(32),
+      decoration: BoxDecoration(
+        color: Colors.grey[50],
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey[200]!),
+      ),
+      child: Center(
+        child: Column(
+          children: [
+            Icon(icon, size: 48, color: Colors.grey[400]),
+            const SizedBox(height: 12),
+            Text(
+              message,
+              style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 class _QuickActionCard extends StatelessWidget {
@@ -970,10 +1587,182 @@ class _QuickActionCard extends StatelessWidget {
               title,
               textAlign: TextAlign.center,
               style: TextStyle(
-                fontSize: getProportionateScreenHeight(12),
+                fontSize: getProportionateScreenHeight(15),
                 fontWeight: FontWeight.w600,
               ),
             ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// WIDGETS DESKTOP
+class _DesktopStatCard extends StatelessWidget {
+  final IconData? icon;
+  final Widget? iconWidget;
+  final String title;
+  final String value;
+  final String subtitle;
+  final Color color;
+  final VoidCallback onTap;
+
+  const _DesktopStatCard({
+    this.icon,
+    this.iconWidget,
+    required this.title,
+    required this.value,
+    required this.subtitle,
+    required this.color,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.grey[200]!),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.04),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: iconWidget ?? Icon(icon, size: 28, color: color),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    title,
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: AppColors.textSecondary,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    value,
+                    style: const TextStyle(
+                      fontSize: 28,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            Icon(
+              CupertinoIcons.right_chevron,
+              size: 16,
+              color: color.withOpacity(0.6),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _DesktopQuickActionCard extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final Color color;
+  final VoidCallback onTap;
+
+  const _DesktopQuickActionCard({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.color,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [color.withOpacity(0.1), color.withOpacity(0.05)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: color.withOpacity(0.2)),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: color.withOpacity(0.2),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Icon(icon, size: 24, color: color),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Icon(CupertinoIcons.right_chevron, size: 16, color: color),
           ],
         ),
       ),
@@ -1015,6 +1804,10 @@ class _ProfilePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
+    final isDesktop = context.isDesktop;
+    final isTablet = context.isTablet;
+    final maxWidth = isDesktop ? 700.0 : (isTablet ? 600.0 : double.infinity);
+
     return BlocBuilder<AuthBloc, AuthState>(
       builder: (context, state) {
         UserModel? user;
@@ -1034,181 +1827,193 @@ class _ProfilePage extends StatelessWidget {
             foregroundColor: Colors.black,
             elevation: 0,
           ),
-          body: ListView(
-            padding: EdgeInsets.all(getProportionateScreenWidth(16)),
-            children: [
-              // Section Paramètres professionnels
-              Text(
-                l10n.professionalSettings,
-                style: TextStyle(
-                  fontSize: getProportionateScreenHeight(18),
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 16),
+          body: Center(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(maxWidth: maxWidth),
+              child: ListView(
+                padding: EdgeInsets.all(isDesktop ? 24 : 16),
+                children: [
+                  // Section Paramètres professionnels
+                  Text(
+                    l10n.professionalSettings,
+                    style: TextStyle(
+                      fontSize: getProportionateScreenHeight(18),
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
 
-              Card(
-                child: Column(
-                  children: [
-                    ListTile(
-                      leading: CircleAvatar(
-                        backgroundColor: AppColors.primary.withOpacity(0.1),
-                        child: Icon(
-                          CupertinoIcons.clock,
-                          color: AppColors.primary,
-                        ),
-                      ),
-                      title: Text(l10n.myAvailability),
-                      subtitle: Text(l10n.defineWorkHours),
-                      trailing: const Icon(CupertinoIcons.right_chevron),
-                      onTap: () {
-                        if (doctorId != null) {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => AvailabilitySettingsPage(
-                                doctorId: doctorId!,
-                                userId: user!.id,
-                              ),
+                  Card(
+                    child: Column(
+                      children: [
+                        ListTile(
+                          leading: CircleAvatar(
+                            backgroundColor: AppColors.primary.withOpacity(0.1),
+                            child: Icon(
+                              CupertinoIcons.clock,
+                              color: AppColors.primary,
                             ),
-                          );
-                        }
-                      },
-                    ),
-                    const Divider(height: 1),
-                    ListTile(
-                      leading: CircleAvatar(
-                        backgroundColor: AppColors.accent.withOpacity(0.1),
-                        child: Icon(
-                          CupertinoIcons.bag_badge_plus,
-                          color: AppColors.accent,
-                        ),
-                      ),
-                      title: Text(l10n.consultationTypes),
-                      subtitle: Text(l10n.physicalTeleconsultationPrices),
-                      trailing: const Icon(CupertinoIcons.right_chevron),
-                      onTap: () {
-                        if (doctorId != null) {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => ConsultationSettingsPage(
-                                doctorId: doctorId!,
-                                userId: user!.id,
-                              ),
-                            ),
-                          );
-                        }
-                      },
-                    ),
-                    const Divider(height: 1),
-                    ListTile(
-                      leading: CircleAvatar(
-                        backgroundColor: Colors.purple.withOpacity(0.1),
-                        child: const Icon(
-                          CupertinoIcons.book,
-                          color: Colors.purple,
-                        ),
-                      ),
-                      title: Text(l10n.professionalExperience),
-                      subtitle: Text(l10n.studiesExperienceCertifications),
-                      trailing: const Icon(CupertinoIcons.right_chevron),
-                      onTap: () {
-                        if (doctorId != null) {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) =>
-                                  const ProfessionalExperiencePage(),
-                            ),
-                          );
-                        }
-                      },
-                    ),
-                    const Divider(height: 1),
-                    ListTile(
-                      leading: CircleAvatar(
-                        backgroundColor: AppColors.secondary.withOpacity(0.1),
-                        child: Icon(
-                          CupertinoIcons.folder_fill,
-                          color: AppColors.secondary,
-                        ),
-                      ),
-                      title: Text(l10n.cvAndDiplomas),
-                      subtitle: Text(l10n.manageDocuments),
-                      trailing: const Icon(CupertinoIcons.right_chevron),
-                      onTap: () {
-                        if (doctorId != null) {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => DocumentsManagementPage(
-                                doctorId: doctorId!,
-                                userId: user!.id,
-                              ),
-                            ),
-                          );
-                        }
-                      },
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 24),
-
-              // Section Compte
-              Text(
-                l10n.myAccount,
-                style: TextStyle(
-                  fontSize: getProportionateScreenHeight(18),
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              Card(
-                child: Column(
-                  children: [
-                    ListTile(
-                      leading: CircleAvatar(
-                        backgroundColor: Colors.grey[200],
-                        child: const Icon(CupertinoIcons.person),
-                      ),
-                      title: Text(user?.fullName ?? l10n.user),
-                      subtitle: Text(user?.email ?? ''),
-                    ),
-                    const Divider(height: 1),
-                    ListTile(
-                      leading: const Icon(CupertinoIcons.settings),
-                      title: Text(l10n.accountSettings),
-                      trailing: const Icon(CupertinoIcons.right_chevron),
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const AccountSettingsPage(),
                           ),
-                        );
-                      },
+                          title: Text(l10n.myAvailability),
+                          subtitle: Text(l10n.defineWorkHours),
+                          trailing: const Icon(CupertinoIcons.right_chevron),
+                          onTap: () {
+                            if (doctorId != null) {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) =>
+                                      AvailabilitySettingsPage(
+                                        doctorId: doctorId!,
+                                        userId: user!.id,
+                                      ),
+                                ),
+                              );
+                            }
+                          },
+                        ),
+                        const Divider(height: 1),
+                        ListTile(
+                          leading: CircleAvatar(
+                            backgroundColor: AppColors.accent.withOpacity(0.1),
+                            child: Icon(
+                              CupertinoIcons.bag_badge_plus,
+                              color: AppColors.accent,
+                            ),
+                          ),
+                          title: Text(l10n.consultationTypes),
+                          subtitle: Text(l10n.physicalTeleconsultationPrices),
+                          trailing: const Icon(CupertinoIcons.right_chevron),
+                          onTap: () {
+                            if (doctorId != null) {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) =>
+                                      ConsultationSettingsPage(
+                                        doctorId: doctorId!,
+                                        userId: user!.id,
+                                      ),
+                                ),
+                              );
+                            }
+                          },
+                        ),
+                        const Divider(height: 1),
+                        ListTile(
+                          leading: CircleAvatar(
+                            backgroundColor: Colors.purple.withOpacity(0.1),
+                            child: const Icon(
+                              CupertinoIcons.book,
+                              color: Colors.purple,
+                            ),
+                          ),
+                          title: Text(l10n.professionalExperience),
+                          subtitle: Text(l10n.studiesExperienceCertifications),
+                          trailing: const Icon(CupertinoIcons.right_chevron),
+                          onTap: () {
+                            if (doctorId != null) {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) =>
+                                      const ProfessionalExperiencePage(),
+                                ),
+                              );
+                            }
+                          },
+                        ),
+                        const Divider(height: 1),
+                        ListTile(
+                          leading: CircleAvatar(
+                            backgroundColor: AppColors.secondary.withOpacity(
+                              0.1,
+                            ),
+                            child: Icon(
+                              CupertinoIcons.folder_fill,
+                              color: AppColors.secondary,
+                            ),
+                          ),
+                          title: Text(l10n.cvAndDiplomas),
+                          subtitle: Text(l10n.manageDocuments),
+                          trailing: const Icon(CupertinoIcons.right_chevron),
+                          onTap: () {
+                            if (doctorId != null) {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => DocumentsManagementPage(
+                                    doctorId: doctorId!,
+                                    userId: user!.id,
+                                  ),
+                                ),
+                              );
+                            }
+                          },
+                        ),
+                      ],
                     ),
-                    const Divider(height: 1),
-                    ListTile(
-                      leading: Icon(
-                        CupertinoIcons.square_arrow_right,
-                        color: Colors.red[700],
-                      ),
-                      title: Text(
-                        l10n.logout,
-                        style: TextStyle(color: Colors.red[700]),
-                      ),
-                      onTap: () {
-                        context.read<AuthBloc>().add(AuthSignOutRequested());
-                      },
+                  ),
+                  const SizedBox(height: 24),
+
+                  // Section Compte
+                  Text(
+                    l10n.myAccount,
+                    style: TextStyle(
+                      fontSize: getProportionateScreenHeight(18),
+                      fontWeight: FontWeight.bold,
                     ),
-                  ],
-                ),
+                  ),
+                  const SizedBox(height: 16),
+
+                  Card(
+                    child: Column(
+                      children: [
+                        ListTile(
+                          leading: CircleAvatar(
+                            backgroundColor: Colors.grey[200],
+                            child: const Icon(CupertinoIcons.person),
+                          ),
+                          title: Text(user?.fullName ?? l10n.user),
+                          subtitle: Text(user?.email ?? ''),
+                        ),
+                        const Divider(height: 1),
+                        ListTile(
+                          leading: const Icon(CupertinoIcons.settings),
+                          title: Text(l10n.accountSettings),
+                          trailing: const Icon(CupertinoIcons.right_chevron),
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) =>
+                                    const AccountSettingsPage(),
+                              ),
+                            );
+                          },
+                        ),
+                        const Divider(height: 1),
+                        ListTile(
+                          leading: Icon(
+                            CupertinoIcons.square_arrow_right,
+                            color: Colors.red[700],
+                          ),
+                          title: Text(
+                            l10n.logout,
+                            style: TextStyle(color: Colors.red[700]),
+                          ),
+                          onTap: () {
+                            context.read<AuthBloc>().add(
+                              AuthSignOutRequested(),
+                            );
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
         );
       },

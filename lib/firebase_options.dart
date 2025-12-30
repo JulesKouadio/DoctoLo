@@ -77,7 +77,7 @@ class DefaultFirebaseOptions {
 
   static const FirebaseOptions windows = FirebaseOptions(
     apiKey: 'AIzaSyDVoPZ9qKpMaBVGdT1uiCbMjF7Zlxu3fns',
-    appId: '1:60493351906:web:6c912d98e36cd8d458c7bb',
+    appId: '1:60493351906:web:9005ad7145a5193d58c7bb',
     messagingSenderId: '60493351906',
     projectId: 'doctolo',
     authDomain: 'doctolo.firebaseapp.com',

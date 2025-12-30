@@ -106,6 +106,20 @@ class _PatientHomePageState extends State<PatientHomePage> {
         });
       },
       labelType: NavigationRailLabelType.all,
+      backgroundColor: Colors.white,
+      indicatorColor: AppColors.primary.withOpacity(0.15),
+      selectedIconTheme: const IconThemeData(color: AppColors.primary),
+      unselectedIconTheme: IconThemeData(color: Colors.grey[600]),
+      selectedLabelTextStyle: const TextStyle(
+        color: AppColors.primary,
+        fontWeight: FontWeight.w600,
+        fontSize: 12,
+      ),
+      unselectedLabelTextStyle: TextStyle(
+        color: Colors.grey[600],
+        fontWeight: FontWeight.normal,
+        fontSize: 12,
+      ),
       destinations: [
         NavigationRailDestination(
           icon: const Icon(CupertinoIcons.house),
@@ -742,6 +756,10 @@ class _ProfilePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
+    final isDesktop = context.isDesktop;
+    final isTablet = context.isTablet;
+    final maxWidth = isDesktop ? 700.0 : (isTablet ? 600.0 : double.infinity);
+
     return BlocBuilder<AuthBloc, AuthState>(
       builder: (context, state) {
         UserModel? user;
@@ -754,131 +772,137 @@ class _ProfilePage extends StatelessWidget {
             title: Text(l10n.profile),
             backgroundColor: AppColors.primary,
           ),
-          body: ListView(
-            padding: EdgeInsets.all(getProportionateScreenWidth(16)),
-            children: [
-              // Info utilisateur
-              Card(
-                elevation: 2,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Padding(
-                  padding: EdgeInsets.all(getProportionateScreenWidth(16)),
-                  child: Column(
-                    children: [
-                      CircleAvatar(
-                        radius: 50,
-                        backgroundColor: AppColors.primary,
-                        child: Text(
-                          user?.firstName[0].toUpperCase() ?? 'U',
-                          style: TextStyle(
-                            fontSize: getProportionateScreenHeight(40),
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
+          body: Center(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(maxWidth: maxWidth),
+              child: ListView(
+                padding: EdgeInsets.all(isDesktop ? 24 : 16),
+                children: [
+                  // Info utilisateur
+                  Card(
+                    elevation: 2,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Padding(
+                      padding: EdgeInsets.all(getProportionateScreenWidth(16)),
+                      child: Column(
+                        children: [
+                          CircleAvatar(
+                            radius: 50,
+                            backgroundColor: AppColors.primary,
+                            child: Text(
+                              user?.firstName[0].toUpperCase() ?? 'U',
+                              style: TextStyle(
+                                fontSize: getProportionateScreenHeight(40),
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
                           ),
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      Text(
-                        user?.fullName ?? 'Utilisateur',
-                        style: TextStyle(
-                          fontSize: getProportionateScreenHeight(24),
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        user?.email ?? '',
-                        style: TextStyle(
-                          fontSize: getProportionateScreenHeight(16),
-                          color: AppColors.textSecondary,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 24),
-
-              // Menu
-              Card(
-                elevation: 2,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Column(
-                  children: [
-                    ListTile(
-                      leading: const Icon(CupertinoIcons.settings),
-                      title: Text(l10n.accountSettings),
-                      subtitle: Text(l10n.language),
-                      trailing: const Icon(CupertinoIcons.right_chevron),
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const AccountSettingsPage(),
+                          const SizedBox(height: 16),
+                          Text(
+                            user?.fullName ?? 'Utilisateur',
+                            style: TextStyle(
+                              fontSize: getProportionateScreenHeight(24),
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
-                        );
-                      },
+                          const SizedBox(height: 8),
+                          Text(
+                            user?.email ?? '',
+                            style: TextStyle(
+                              fontSize: getProportionateScreenHeight(16),
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                    const Divider(height: 1),
-                    ListTile(
-                      leading: const Icon(CupertinoIcons.person),
-                      title: Text(l10n.personalInfo),
-                      trailing: const Icon(CupertinoIcons.right_chevron),
-                      onTap: () {
-                        // TODO: Créer PersonalInfoPage et naviguer
-                        // Navigator.push(context, MaterialPageRoute(builder: (_) => PersonalInfoPage()));
-                      },
-                    ),
-                    const Divider(height: 1),
-                    ListTile(
-                      leading: const Icon(CupertinoIcons.bell_fill),
-                      title: Text(l10n.notifications),
-                      trailing: const Icon(CupertinoIcons.right_chevron),
-                      onTap: () {
-                        // TODO: Créer NotificationsSettingsPage et naviguer
-                        // Navigator.push(context, MaterialPageRoute(builder: (_) => NotificationsSettingsPage()));
-                      },
-                    ),
-                    const Divider(height: 1),
-                    ListTile(
-                      leading: const Icon(CupertinoIcons.lock_shield),
-                      title: Text(l10n.privacy),
-                      trailing: const Icon(CupertinoIcons.right_chevron),
-                      onTap: () {
-                        // TODO: Créer PrivacySettingsPage et naviguer
-                        // Navigator.push(context, MaterialPageRoute(builder: (_) => PrivacySettingsPage()));
-                      },
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 24),
+                  ),
+                  const SizedBox(height: 24),
 
-              // Déconnexion
-              Card(
-                elevation: 2,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: ListTile(
-                  leading: Icon(
-                    CupertinoIcons.square_arrow_right,
-                    color: Colors.red[700],
+                  // Menu
+                  Card(
+                    elevation: 2,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Column(
+                      children: [
+                        ListTile(
+                          leading: const Icon(CupertinoIcons.settings),
+                          title: Text(l10n.accountSettings),
+                          subtitle: Text(l10n.language),
+                          trailing: const Icon(CupertinoIcons.right_chevron),
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) =>
+                                    const AccountSettingsPage(),
+                              ),
+                            );
+                          },
+                        ),
+                        const Divider(height: 1),
+                        ListTile(
+                          leading: const Icon(CupertinoIcons.person),
+                          title: Text(l10n.personalInfo),
+                          trailing: const Icon(CupertinoIcons.right_chevron),
+                          onTap: () {
+                            // TODO: Créer PersonalInfoPage et naviguer
+                            // Navigator.push(context, MaterialPageRoute(builder: (_) => PersonalInfoPage()));
+                          },
+                        ),
+                        const Divider(height: 1),
+                        ListTile(
+                          leading: const Icon(CupertinoIcons.bell_fill),
+                          title: Text(l10n.notifications),
+                          trailing: const Icon(CupertinoIcons.right_chevron),
+                          onTap: () {
+                            // TODO: Créer NotificationsSettingsPage et naviguer
+                            // Navigator.push(context, MaterialPageRoute(builder: (_) => NotificationsSettingsPage()));
+                          },
+                        ),
+                        const Divider(height: 1),
+                        ListTile(
+                          leading: const Icon(CupertinoIcons.lock_shield),
+                          title: Text(l10n.privacy),
+                          trailing: const Icon(CupertinoIcons.right_chevron),
+                          onTap: () {
+                            // TODO: Créer PrivacySettingsPage et naviguer
+                            // Navigator.push(context, MaterialPageRoute(builder: (_) => PrivacySettingsPage()));
+                          },
+                        ),
+                      ],
+                    ),
                   ),
-                  title: Text(
-                    'Déconnexion',
-                    style: TextStyle(color: Colors.red[700]),
+                  const SizedBox(height: 24),
+
+                  // Déconnexion
+                  Card(
+                    elevation: 2,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: ListTile(
+                      leading: Icon(
+                        CupertinoIcons.square_arrow_right,
+                        color: Colors.red[700],
+                      ),
+                      title: Text(
+                        'Déconnexion',
+                        style: TextStyle(color: Colors.red[700]),
+                      ),
+                      onTap: () {
+                        context.read<AuthBloc>().add(AuthSignOutRequested());
+                      },
+                    ),
                   ),
-                  onTap: () {
-                    context.read<AuthBloc>().add(AuthSignOutRequested());
-                  },
-                ),
+                ],
               ),
-            ],
+            ),
           ),
         );
       },

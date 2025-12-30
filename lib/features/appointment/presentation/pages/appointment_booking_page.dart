@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/size_config.dart';
+import '../../../../core/utils/responsive.dart';
 import '../../../auth/presentation/bloc/auth_bloc.dart';
 
 class AppointmentBookingPage extends StatefulWidget {
@@ -350,6 +351,10 @@ class _AppointmentBookingPageState extends State<AppointmentBookingPage> {
 
   @override
   Widget build(BuildContext context) {
+    final isDesktop = context.isDesktop;
+    final isTablet = context.isTablet;
+    final maxWidth = isDesktop ? 700.0 : (isTablet ? 600.0 : double.infinity);
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Réserver un rendez-vous'),
@@ -357,430 +362,441 @@ class _AppointmentBookingPageState extends State<AppointmentBookingPage> {
         foregroundColor: Colors.black,
         elevation: 0,
       ),
-      body: Column(
-        children: [
-          // Doctor Info Header
-          Container(
-            padding: EdgeInsets.all(getProportionateScreenWidth(16)),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
-                  blurRadius: 10,
-                  offset: const Offset(0, 2),
+      body: Center(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(maxWidth: maxWidth),
+          child: Column(
+            children: [
+              // Doctor Info Header
+              Container(
+                padding: EdgeInsets.all(isDesktop ? 24 : 16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.05),
+                      blurRadius: 10,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
                 ),
-              ],
-            ),
-            child: Row(
-              children: [
-                CircleAvatar(
-                  radius: 30,
-                  backgroundColor: AppColors.primary.withOpacity(0.1),
-                  backgroundImage: widget.photoUrl != null
-                      ? NetworkImage(widget.photoUrl!)
-                      : null,
-                  child: widget.photoUrl == null
-                      ? Icon(
-                          CupertinoIcons.person,
-                          size: 30,
-                          color: AppColors.primary,
-                        )
-                      : null,
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        widget.doctorName,
-                        style: TextStyle(
-                          fontSize: getProportionateScreenHeight(18),
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      Text(
-                        widget.specialty,
-                        style: TextStyle(
-                          fontSize: getProportionateScreenHeight(14),
-                          color: Colors.grey[600],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          // Stepper
-          Expanded(
-            child: Stepper(
-              currentStep: _currentStep,
-              onStepContinue: () {
-                if (_currentStep == 0) {
-                  if (_selectedConsultationType != null) {
-                    setState(() {
-                      _currentStep = 1;
-                    });
-                  } else {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text(
-                          'Veuillez sélectionner un type de consultation',
-                        ),
-                        backgroundColor: AppColors.error,
-                      ),
-                    );
-                  }
-                } else if (_currentStep == 1) {
-                  if (_selectedDate != null && _selectedTimeSlot != null) {
-                    setState(() {
-                      _currentStep = 2;
-                    });
-                  } else {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          _selectedDate == null
-                              ? 'Veuillez sélectionner une date'
-                              : 'Veuillez sélectionner un créneau horaire',
-                        ),
-                        backgroundColor: AppColors.error,
-                      ),
-                    );
-                  }
-                } else if (_currentStep == 2) {
-                  _confirmAppointment();
-                }
-              },
-              onStepCancel: () {
-                if (_currentStep > 0) {
-                  setState(() {
-                    _currentStep--;
-                  });
-                }
-              },
-              controlsBuilder: (context, details) {
-                return Padding(
-                  padding: EdgeInsets.only(
-                    top: getProportionateScreenHeight(16),
-                  ),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: ElevatedButton(
-                          onPressed: details.onStepContinue,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.primary,
-                            padding: EdgeInsets.symmetric(
-                              vertical: getProportionateScreenHeight(12),
-                            ),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
+                child: Row(
+                  children: [
+                    CircleAvatar(
+                      radius: isDesktop ? 35 : 30,
+                      backgroundColor: AppColors.primary.withOpacity(0.1),
+                      backgroundImage: widget.photoUrl != null
+                          ? NetworkImage(widget.photoUrl!)
+                          : null,
+                      child: widget.photoUrl == null
+                          ? Icon(
+                              CupertinoIcons.person,
+                              size: isDesktop ? 35 : 30,
+                              color: AppColors.primary,
+                            )
+                          : null,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            widget.doctorName,
+                            style: TextStyle(
+                              fontSize: isDesktop ? 20 : 18,
+                              fontWeight: FontWeight.bold,
                             ),
                           ),
-                          child: Text(
-                            _currentStep == 2 ? 'Confirmer' : 'Continuer',
-                            style: const TextStyle(color: Colors.white),
-                          ),
-                        ),
-                      ),
-                      if (_currentStep > 0) ...[
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: OutlinedButton(
-                            onPressed: details.onStepCancel,
-                            style: OutlinedButton.styleFrom(
-                              padding: EdgeInsets.symmetric(
-                                vertical: getProportionateScreenHeight(12),
-                              ),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
+                          Text(
+                            widget.specialty,
+                            style: TextStyle(
+                              fontSize: isDesktop ? 16 : 14,
+                              color: Colors.grey[600],
                             ),
-                            child: const Text('Retour'),
                           ),
-                        ),
-                      ],
-                    ],
-                  ),
-                );
-              },
-              steps: [
-                // Step 1: Type de consultation
-                Step(
-                  title: const Text('Type de consultation'),
-                  isActive: _currentStep >= 0,
-                  state: _currentStep > 0
-                      ? StepState.complete
-                      : StepState.indexed,
-                  content: Column(
-                    children: [
-                      if (widget.offersPhysicalConsultation)
-                        _ConsultationTypeOption(
-                          title: 'Consultation au cabinet',
-                          subtitle:
-                              '${widget.consultationFee.toStringAsFixed(0)} XOF',
-                          icon: CupertinoIcons.plus_circle,
-                          selected: _selectedConsultationType == 'physical',
-                          onTap: () {
-                            setState(() {
-                              _selectedConsultationType = 'physical';
-                            });
-                          },
-                        ),
-                      if (widget.offersPhysicalConsultation &&
-                          widget.offersTelemedicine)
-                        const SizedBox(height: 12),
-                      if (widget.offersTelemedicine)
-                        _ConsultationTypeOption(
-                          title: 'Téléconsultation',
-                          subtitle:
-                              '${widget.teleconsultationFee.toStringAsFixed(0)} XOF',
-                          icon: CupertinoIcons.videocam_fill,
-                          selected: _selectedConsultationType == 'telemedicine',
-                          onTap: () {
-                            setState(() {
-                              _selectedConsultationType = 'telemedicine';
-                            });
-                          },
-                        ),
-                    ],
-                  ),
-                ),
-
-                // Step 2: Date et heure
-                Step(
-                  title: const Text('Date et heure'),
-                  isActive: _currentStep >= 1,
-                  state: _currentStep > 1
-                      ? StepState.complete
-                      : StepState.indexed,
-                  content: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Sélectionnez une date',
-                        style: TextStyle(
-                          fontSize: getProportionateScreenHeight(16),
-                          fontWeight: FontWeight.w600,
-                        ),
+                        ],
                       ),
-                      const SizedBox(height: 12),
-                      SizedBox(
-                        height: 100,
-                        child: ListView.builder(
-                          scrollDirection: Axis.horizontal,
-                          itemCount: 14,
-                          itemBuilder: (context, index) {
-                            final date = DateTime.now().add(
-                              Duration(days: index),
-                            );
-                            final isSelected =
-                                _selectedDate?.day == date.day &&
-                                _selectedDate?.month == date.month;
+                    ),
+                  ],
+                ),
+              ),
 
-                            return GestureDetector(
-                              onTap: () {
-                                setState(() {
-                                  _selectedDate = date;
-                                  _selectedTimeSlot = null;
-                                });
-                                _loadAvailableSlots(date);
-                              },
-                              child: Container(
-                                width: 80,
-                                margin: EdgeInsets.only(
-                                  right: getProportionateScreenWidth(8),
+              // Stepper
+              Expanded(
+                child: Stepper(
+                  currentStep: _currentStep,
+                  onStepContinue: () {
+                    if (_currentStep == 0) {
+                      if (_selectedConsultationType != null) {
+                        setState(() {
+                          _currentStep = 1;
+                        });
+                      } else {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                              'Veuillez sélectionner un type de consultation',
+                            ),
+                            backgroundColor: AppColors.error,
+                          ),
+                        );
+                      }
+                    } else if (_currentStep == 1) {
+                      if (_selectedDate != null && _selectedTimeSlot != null) {
+                        setState(() {
+                          _currentStep = 2;
+                        });
+                      } else {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              _selectedDate == null
+                                  ? 'Veuillez sélectionner une date'
+                                  : 'Veuillez sélectionner un créneau horaire',
+                            ),
+                            backgroundColor: AppColors.error,
+                          ),
+                        );
+                      }
+                    } else if (_currentStep == 2) {
+                      _confirmAppointment();
+                    }
+                  },
+                  onStepCancel: () {
+                    if (_currentStep > 0) {
+                      setState(() {
+                        _currentStep--;
+                      });
+                    }
+                  },
+                  controlsBuilder: (context, details) {
+                    return Padding(
+                      padding: EdgeInsets.only(
+                        top: getProportionateScreenHeight(16),
+                      ),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: ElevatedButton(
+                              onPressed: details.onStepContinue,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.primary,
+                                padding: EdgeInsets.symmetric(
+                                  vertical: getProportionateScreenHeight(12),
                                 ),
-                                decoration: BoxDecoration(
-                                  color: isSelected
-                                      ? AppColors.primary
-                                      : Colors.grey[100],
+                                shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(
-                                    color: isSelected
-                                        ? AppColors.primary
-                                        : Colors.transparent,
-                                    width: 2,
+                                ),
+                              ),
+                              child: Text(
+                                _currentStep == 2 ? 'Confirmer' : 'Continuer',
+                                style: const TextStyle(color: Colors.white),
+                              ),
+                            ),
+                          ),
+                          if (_currentStep > 0) ...[
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: OutlinedButton(
+                                onPressed: details.onStepCancel,
+                                style: OutlinedButton.styleFrom(
+                                  padding: EdgeInsets.symmetric(
+                                    vertical: getProportionateScreenHeight(12),
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
                                   ),
                                 ),
-                                child: Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
+                                child: const Text('Retour'),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    );
+                  },
+                  steps: [
+                    // Step 1: Type de consultation
+                    Step(
+                      title: const Text('Type de consultation'),
+                      isActive: _currentStep >= 0,
+                      state: _currentStep > 0
+                          ? StepState.complete
+                          : StepState.indexed,
+                      content: Column(
+                        children: [
+                          if (widget.offersPhysicalConsultation)
+                            _ConsultationTypeOption(
+                              title: 'Consultation au cabinet',
+                              subtitle:
+                                  '${widget.consultationFee.toStringAsFixed(0)} XOF',
+                              icon: CupertinoIcons.plus_circle,
+                              selected: _selectedConsultationType == 'physical',
+                              onTap: () {
+                                setState(() {
+                                  _selectedConsultationType = 'physical';
+                                });
+                              },
+                            ),
+                          if (widget.offersPhysicalConsultation &&
+                              widget.offersTelemedicine)
+                            const SizedBox(height: 12),
+                          if (widget.offersTelemedicine)
+                            _ConsultationTypeOption(
+                              title: 'Téléconsultation',
+                              subtitle:
+                                  '${widget.teleconsultationFee.toStringAsFixed(0)} XOF',
+                              icon: CupertinoIcons.videocam_fill,
+                              selected:
+                                  _selectedConsultationType == 'telemedicine',
+                              onTap: () {
+                                setState(() {
+                                  _selectedConsultationType = 'telemedicine';
+                                });
+                              },
+                            ),
+                        ],
+                      ),
+                    ),
+
+                    // Step 2: Date et heure
+                    Step(
+                      title: const Text('Date et heure'),
+                      isActive: _currentStep >= 1,
+                      state: _currentStep > 1
+                          ? StepState.complete
+                          : StepState.indexed,
+                      content: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Sélectionnez une date',
+                            style: TextStyle(
+                              fontSize: getProportionateScreenHeight(16),
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          SizedBox(
+                            height: 100,
+                            child: ListView.builder(
+                              scrollDirection: Axis.horizontal,
+                              itemCount: 14,
+                              itemBuilder: (context, index) {
+                                final date = DateTime.now().add(
+                                  Duration(days: index),
+                                );
+                                final isSelected =
+                                    _selectedDate?.day == date.day &&
+                                    _selectedDate?.month == date.month;
+
+                                return GestureDetector(
+                                  onTap: () {
+                                    setState(() {
+                                      _selectedDate = date;
+                                      _selectedTimeSlot = null;
+                                    });
+                                    _loadAvailableSlots(date);
+                                  },
+                                  child: Container(
+                                    width: 80,
+                                    margin: EdgeInsets.only(
+                                      right: getProportionateScreenWidth(8),
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: isSelected
+                                          ? AppColors.primary
+                                          : Colors.grey[100],
+                                      borderRadius: BorderRadius.circular(12),
+                                      border: Border.all(
+                                        color: isSelected
+                                            ? AppColors.primary
+                                            : Colors.transparent,
+                                        width: 2,
+                                      ),
+                                    ),
+                                    child: Column(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: [
+                                        Text(
+                                          _getDayName(
+                                            date.weekday,
+                                          ).substring(0, 3),
+                                          style: TextStyle(
+                                            fontSize:
+                                                getProportionateScreenHeight(
+                                                  12,
+                                                ),
+                                            color: isSelected
+                                                ? Colors.white
+                                                : Colors.grey[600],
+                                          ),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          date.day.toString(),
+                                          style: TextStyle(
+                                            fontSize:
+                                                getProportionateScreenHeight(
+                                                  24,
+                                                ),
+                                            fontWeight: FontWeight.bold,
+                                            color: isSelected
+                                                ? Colors.white
+                                                : Colors.black,
+                                          ),
+                                        ),
+                                        Text(
+                                          _getMonthName(date.month),
+                                          style: TextStyle(
+                                            fontSize:
+                                                getProportionateScreenHeight(
+                                                  12,
+                                                ),
+                                            color: isSelected
+                                                ? Colors.white
+                                                : Colors.grey[600],
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                          if (_selectedDate != null) ...[
+                            const SizedBox(height: 24),
+                            Text(
+                              'Créneaux disponibles',
+                              style: TextStyle(
+                                fontSize: getProportionateScreenHeight(16),
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            if (_isLoading)
+                              const Center(child: CircularProgressIndicator())
+                            else if (_availableSlots.isEmpty)
+                              Container(
+                                padding: EdgeInsets.all(
+                                  getProportionateScreenWidth(16),
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.orange[50],
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Row(
                                   children: [
-                                    Text(
-                                      _getDayName(date.weekday).substring(0, 3),
-                                      style: TextStyle(
-                                        fontSize: getProportionateScreenHeight(
-                                          12,
-                                        ),
-                                        color: isSelected
-                                            ? Colors.white
-                                            : Colors.grey[600],
-                                      ),
+                                    Icon(
+                                      CupertinoIcons.info_circle,
+                                      color: Colors.orange[700],
                                     ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      date.day.toString(),
-                                      style: TextStyle(
-                                        fontSize: getProportionateScreenHeight(
-                                          24,
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Text(
+                                        'Aucun créneau disponible pour cette date',
+                                        style: TextStyle(
+                                          fontSize:
+                                              getProportionateScreenHeight(14),
                                         ),
-                                        fontWeight: FontWeight.bold,
-                                        color: isSelected
-                                            ? Colors.white
-                                            : Colors.black,
-                                      ),
-                                    ),
-                                    Text(
-                                      _getMonthName(date.month),
-                                      style: TextStyle(
-                                        fontSize: getProportionateScreenHeight(
-                                          12,
-                                        ),
-                                        color: isSelected
-                                            ? Colors.white
-                                            : Colors.grey[600],
                                       ),
                                     ),
                                   ],
                                 ),
-                              ),
-                            );
-                          },
-                        ),
-                      ),
-                      if (_selectedDate != null) ...[
-                        const SizedBox(height: 24),
-                        Text(
-                          'Créneaux disponibles',
-                          style: TextStyle(
-                            fontSize: getProportionateScreenHeight(16),
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        if (_isLoading)
-                          const Center(child: CircularProgressIndicator())
-                        else if (_availableSlots.isEmpty)
-                          Container(
-                            padding: EdgeInsets.all(
-                              getProportionateScreenWidth(16),
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.orange[50],
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Row(
-                              children: [
-                                Icon(
-                                  CupertinoIcons.info_circle,
-                                  color: Colors.orange[700],
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Text(
-                                    'Aucun créneau disponible pour cette date',
-                                    style: TextStyle(
-                                      fontSize: getProportionateScreenHeight(
-                                        14,
+                              )
+                            else
+                              Wrap(
+                                spacing: 8,
+                                runSpacing: 8,
+                                children: _availableSlots.values.first
+                                    .map(
+                                      (slot) => ChoiceChip(
+                                        label: Text(slot),
+                                        selected: _selectedTimeSlot == slot,
+                                        onSelected: (selected) {
+                                          setState(() {
+                                            _selectedTimeSlot = selected
+                                                ? slot
+                                                : null;
+                                          });
+                                        },
+                                        selectedColor: AppColors.primary,
+                                        labelStyle: TextStyle(
+                                          color: _selectedTimeSlot == slot
+                                              ? Colors.white
+                                              : Colors.black,
+                                        ),
                                       ),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          )
-                        else
-                          Wrap(
-                            spacing: 8,
-                            runSpacing: 8,
-                            children: _availableSlots.values.first
-                                .map(
-                                  (slot) => ChoiceChip(
-                                    label: Text(slot),
-                                    selected: _selectedTimeSlot == slot,
-                                    onSelected: (selected) {
-                                      setState(() {
-                                        _selectedTimeSlot = selected
-                                            ? slot
-                                            : null;
-                                      });
-                                    },
-                                    selectedColor: AppColors.primary,
-                                    labelStyle: TextStyle(
-                                      color: _selectedTimeSlot == slot
-                                          ? Colors.white
-                                          : Colors.black,
-                                    ),
-                                  ),
-                                )
-                                .toList(),
-                          ),
-                      ],
-                    ],
-                  ),
-                ),
+                                    )
+                                    .toList(),
+                              ),
+                          ],
+                        ],
+                      ),
+                    ),
 
-                // Step 3: Confirmation
-                Step(
-                  title: const Text('Confirmation'),
-                  isActive: _currentStep >= 2,
-                  content: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _SummaryItem(
-                        icon: CupertinoIcons.bag_badge_plus,
-                        label: 'Type',
-                        value: _selectedConsultationType == 'physical'
-                            ? 'Consultation au cabinet'
-                            : 'Téléconsultation',
-                      ),
-                      _SummaryItem(
-                        icon: CupertinoIcons.calendar,
-                        label: 'Date',
-                        value: _selectedDate != null
-                            ? '${_selectedDate!.day}/${_selectedDate!.month}/${_selectedDate!.year}'
-                            : '',
-                      ),
-                      _SummaryItem(
-                        icon: CupertinoIcons.clock,
-                        label: 'Heure',
-                        value: _selectedTimeSlot ?? '',
-                      ),
-                      _SummaryItem(
-                        icon: CupertinoIcons.money_euro,
-                        label: 'Tarif',
-                        value:
-                            '${(_selectedConsultationType == 'physical' ? widget.consultationFee : widget.teleconsultationFee).toStringAsFixed(0)} XOF',
-                      ),
-                      const SizedBox(height: 16),
-                      TextField(
-                        controller: _reasonController,
-                        maxLines: 3,
-                        decoration: InputDecoration(
-                          labelText: 'Motif de consultation (optionnel)',
-                          hintText: 'Décrivez brièvement votre motif...',
-                          filled: true,
-                          fillColor: Colors.grey[100],
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: BorderSide.none,
+                    // Step 3: Confirmation
+                    Step(
+                      title: const Text('Confirmation'),
+                      isActive: _currentStep >= 2,
+                      content: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _SummaryItem(
+                            icon: CupertinoIcons.bag_badge_plus,
+                            label: 'Type',
+                            value: _selectedConsultationType == 'physical'
+                                ? 'Consultation au cabinet'
+                                : 'Téléconsultation',
                           ),
-                        ),
-                        onChanged: (value) {
-                          _reason = value;
-                        },
+                          _SummaryItem(
+                            icon: CupertinoIcons.calendar,
+                            label: 'Date',
+                            value: _selectedDate != null
+                                ? '${_selectedDate!.day}/${_selectedDate!.month}/${_selectedDate!.year}'
+                                : '',
+                          ),
+                          _SummaryItem(
+                            icon: CupertinoIcons.clock,
+                            label: 'Heure',
+                            value: _selectedTimeSlot ?? '',
+                          ),
+                          _SummaryItem(
+                            icon: CupertinoIcons.money_euro,
+                            label: 'Tarif',
+                            value:
+                                '${(_selectedConsultationType == 'physical' ? widget.consultationFee : widget.teleconsultationFee).toStringAsFixed(0)} XOF',
+                          ),
+                          const SizedBox(height: 16),
+                          TextField(
+                            controller: _reasonController,
+                            maxLines: 3,
+                            decoration: InputDecoration(
+                              labelText: 'Motif de consultation (optionnel)',
+                              hintText: 'Décrivez brièvement votre motif...',
+                              filled: true,
+                              fillColor: Colors.grey[100],
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide.none,
+                              ),
+                            ),
+                            onChanged: (value) {
+                              _reason = value;
+                            },
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
