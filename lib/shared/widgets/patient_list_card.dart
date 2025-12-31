@@ -20,6 +20,7 @@ class PatientListCard extends StatelessWidget {
     required this.lastVisit,
     this.nextAppointment,
     this.onTap,
+    required status,
   });
 
   @override
@@ -36,7 +37,11 @@ class PatientListCard extends StatelessWidget {
                 ? NetworkImage(avatarUrl!)
                 : null,
             child: avatarUrl == null
-                ? Icon(CupertinoIcons.person, size: 25, color: AppColors.primary)
+                ? Icon(
+                    CupertinoIcons.person,
+                    size: 25,
+                    color: AppColors.primary,
+                  )
                 : null,
           ),
           const SizedBox(width: 16),

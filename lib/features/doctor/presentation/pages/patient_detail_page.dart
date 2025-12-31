@@ -1,3 +1,5 @@
+import 'package:DoctoLo/features/doctor/presentation/pages/patient_metrics_page.dart'
+    show PatientMetricsPage, PatientConsultationPage;
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -171,51 +173,142 @@ class _PatientDetailPageState extends State<PatientDetailPage>
 }
 
 // Onglet des informations médicales (adapté pour desktop et mobile)
-class _MedicalInfoTab extends StatelessWidget {
+class _MedicalInfoTab extends StatefulWidget {
   final String patientId;
   final bool isDesktop;
 
   const _MedicalInfoTab({required this.patientId, this.isDesktop = false});
 
   @override
-  Widget build(BuildContext context) {
-    return FutureBuilder<DocumentSnapshot>(
-      future: FirebaseFirestore.instance
+  __MedicalInfoTabState createState() => __MedicalInfoTabState();
+}
+
+class __MedicalInfoTabState extends State<_MedicalInfoTab> {
+  late Future<Map<String, dynamic>> _userDataFuture;
+  late Future<PatientMedicalInfo?> _medicalInfoFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _userDataFuture = _fetchUserData();
+    _medicalInfoFuture = _fetchMedicalInfo();
+  }
+
+  Future<Map<String, dynamic>> _fetchUserData() async {
+    final snapshot = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(widget.patientId)
+        .get();
+
+    if (!snapshot.exists) {
+      throw Exception('Patient non trouvé');
+    }
+
+    final data = snapshot.data() as Map<String, dynamic>;
+    data['id'] = widget.patientId;
+    return data;
+  }
+
+  Future<PatientMedicalInfo?> _fetchMedicalInfo() async {
+    final snapshot = await FirebaseFirestore.instance
+        .collection('medical_records')
+        .doc(widget.patientId)
+        .get();
+
+    if (snapshot.exists) {
+      return PatientMedicalInfo.fromJson(
+        snapshot.data() as Map<String, dynamic>,
+        widget.patientId,
+      );
+    }
+    return null;
+  }
+
+  Future<void> _updateUserField(String field, String value) async {
+    try {
+      await FirebaseFirestore.instance
           .collection('users')
-          .doc(patientId)
-          .get(),
-      builder: (context, userSnapshot) {
-        if (userSnapshot.connectionState == ConnectionState.waiting) {
+          .doc(widget.patientId)
+          .update({field: value});
+
+      setState(() {
+        _userDataFuture = _fetchUserData();
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('$field mis à jour avec succès'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erreur lors de la mise à jour: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  void _showEditDialog(String title, String currentValue, String field) {
+    final controller = TextEditingController(text: currentValue);
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Modifier $title'),
+        content: TextField(
+          controller: controller,
+          decoration: InputDecoration(
+            hintText: 'Entrez le nouveau $title',
+            border: const OutlineInputBorder(),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Annuler'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              if (controller.text.trim().isNotEmpty) {
+                Navigator.pop(context);
+                await _updateUserField(field, controller.text.trim());
+              }
+            },
+            child: const Text('Enregistrer'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder(
+      future: Future.wait([_userDataFuture, _medicalInfoFuture]),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
         }
 
-        if (!userSnapshot.hasData || !userSnapshot.data!.exists) {
-          return const Center(child: Text('Patient non trouvé'));
+        if (snapshot.hasError) {
+          return Center(child: Text('Erreur: ${snapshot.error}'));
         }
 
-        final userData = userSnapshot.data!.data() as Map<String, dynamic>;
+        final userData = snapshot.data![0] as Map<String, dynamic>;
+        final medicalInfo = snapshot.data![1] as PatientMedicalInfo?;
 
-        return FutureBuilder<DocumentSnapshot>(
-          future: FirebaseFirestore.instance
-              .collection('patient_medical_info')
-              .doc(patientId)
-              .get(),
-          builder: (context, medicalSnapshot) {
-            PatientMedicalInfo? medicalInfo;
-            if (medicalSnapshot.hasData && medicalSnapshot.data!.exists) {
-              medicalInfo = PatientMedicalInfo.fromJson(
-                medicalSnapshot.data!.data() as Map<String, dynamic>,
-                patientId,
-              );
-            }
+        if (widget.isDesktop) {
+          return _buildDesktopMedicalInfo(userData, medicalInfo);
+        }
 
-            if (isDesktop) {
-              return _buildDesktopMedicalInfo(userData, medicalInfo);
-            }
-
-            return _buildMobileMedicalInfo(userData, medicalInfo);
-          },
-        );
+        return _buildMobileMedicalInfo(userData, medicalInfo);
       },
     );
   }
@@ -239,15 +332,22 @@ class _MedicalInfoTab extends StatelessWidget {
                     '${userData['firstName'] ?? ''} ${userData['lastName'] ?? ''}',
                 icon: CupertinoIcons.person,
               ),
-              _InfoRow(
+              _EditableInfoRow(
                 label: 'Email',
                 value: userData['email'] ?? 'Non renseigné',
                 icon: CupertinoIcons.mail,
+                onEdit: () =>
+                    _showEditDialog('email', userData['email'] ?? '', 'email'),
               ),
-              _InfoRow(
+              _EditableInfoRow(
                 label: 'Téléphone',
                 value: userData['phone'] ?? 'Non renseigné',
                 icon: CupertinoIcons.phone,
+                onEdit: () => _showEditDialog(
+                  'numéro de téléphone',
+                  userData['phone'] ?? '',
+                  'phone',
+                ),
               ),
               if (userData['dateOfBirth'] != null)
                 _InfoRow(
@@ -410,15 +510,22 @@ class _MedicalInfoTab extends StatelessWidget {
                 icon: CupertinoIcons.person,
                 isBold: true,
               ),
-              _DesktopInfoRow(
+              _DesktopEditableInfoRow(
                 label: 'Email',
                 value: userData['email'] ?? 'Non renseigné',
                 icon: CupertinoIcons.mail,
+                onEdit: () =>
+                    _showEditDialog('email', userData['email'] ?? '', 'email'),
               ),
-              _DesktopInfoRow(
+              _DesktopEditableInfoRow(
                 label: 'Téléphone',
                 value: userData['phone'] ?? 'Non renseigné',
                 icon: CupertinoIcons.phone,
+                onEdit: () => _showEditDialog(
+                  'numéro de téléphone',
+                  userData['phone'] ?? '',
+                  'phone',
+                ),
               ),
               if (userData['dateOfBirth'] != null)
                 _DesktopInfoRow(
@@ -605,6 +712,83 @@ class _DesktopInfoRow extends StatelessWidget {
                     fontWeight: isBold ? FontWeight.bold : FontWeight.w500,
                     color: valueColor ?? Colors.black87,
                   ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DesktopEditableInfoRow extends StatelessWidget {
+  final String label;
+  final String value;
+  final IconData icon;
+  final Color? valueColor;
+  final bool isBold;
+  final VoidCallback onEdit;
+
+  const _DesktopEditableInfoRow({
+    required this.label,
+    required this.value,
+    required this.icon,
+    this.valueColor,
+    this.isBold = false,
+    required this.onEdit,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.grey[100],
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(icon, size: 16, color: Colors.grey[700]),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                ),
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        value,
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: isBold
+                              ? FontWeight.bold
+                              : FontWeight.w500,
+                          color: valueColor ?? Colors.black87,
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      icon: Icon(
+                        CupertinoIcons.pencil,
+                        size: 20,
+                        color: AppColors.primary,
+                      ),
+                      onPressed: onEdit,
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -1093,6 +1277,41 @@ class _DesktopConsultationCard extends StatelessWidget {
                         title: 'Notes',
                         content: notes,
                       ),
+                    const SizedBox(height: 32),
+                    consultation['status'] != 'completed'
+                        ? Center(
+                            child: ElevatedButton.icon(
+                              icon: const Icon(CupertinoIcons.play_circle_fill),
+                              label: const Text('Démarrer la consultation'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.primary,
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 32,
+                                  vertical: 16,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                              onPressed: () {
+                                Navigator.pop(context);
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) =>
+                                        PatientConsultationPage(
+                                          patientId:
+                                              consultation['patientId'] ?? '',
+                                          patientName:
+                                              consultation['patientName'] ?? '',
+                                        ),
+                                  ),
+                                );
+                              },
+                            ),
+                          )
+                        : Container(),
                   ],
                 ),
               ),
@@ -1397,7 +1616,14 @@ class _InfoRow extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, size: 20, color: Colors.grey[600]),
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.grey[100],
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(icon, size: 16, color: Colors.grey[700]),
+          ),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -1418,6 +1644,82 @@ class _InfoRow extends StatelessWidget {
                     fontWeight: FontWeight.w500,
                     color: valueColor ?? Colors.black87,
                   ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _EditableInfoRow extends StatelessWidget {
+  final String label;
+  final String value;
+  final IconData icon;
+  final Color? valueColor;
+  final VoidCallback onEdit;
+
+  const _EditableInfoRow({
+    required this.label,
+    required this.value,
+    required this.icon,
+    this.valueColor,
+    required this.onEdit,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.only(bottom: getProportionateScreenHeight(12)),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.grey[100],
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(icon, size: 16, color: Colors.grey[700]),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: getProportionateScreenHeight(13),
+                    color: Colors.grey[600],
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        value,
+                        style: TextStyle(
+                          fontSize: getProportionateScreenHeight(15),
+                          fontWeight: FontWeight.w500,
+                          color: valueColor ?? Colors.black87,
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      icon: Icon(
+                        CupertinoIcons.pencil,
+                        size: 16,
+                        color: AppColors.primary,
+                      ),
+                      onPressed: onEdit,
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -1557,13 +1859,13 @@ class _ConsultationCard extends StatelessWidget {
                         ),
                         const SizedBox(width: 4),
                         Text(
-                          isTelemedicine ? 'Téléconsultation' : 'Au cabinet',
+                          isTelemedicine ? 'Télé' : 'Cabinet',
                           style: TextStyle(
-                            fontSize: getProportionateScreenHeight(12),
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
                             color: isTelemedicine
                                 ? AppColors.accent
                                 : AppColors.primary,
-                            fontWeight: FontWeight.w600,
                           ),
                         ),
                       ],

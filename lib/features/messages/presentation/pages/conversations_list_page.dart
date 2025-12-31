@@ -41,39 +41,7 @@ class _ConversationsListPageState extends State<ConversationsListPage> {
         .where('participants', arrayContains: currentUserId)
         .orderBy('lastMessageTime', descending: true)
         .snapshots()
-        .handleError((error) {
-          print('═══════════════════════════════════════════════════════════');
-          print('🔴 ERREUR FIRESTORE - INDEX REQUIS (Conversations)');
-          print('═══════════════════════════════════════════════════════════');
-          print('');
-          print('Collection: conversations');
-          print('Champs utilisés:');
-          print('  - participants (arrayContains)');
-          print('  - lastMessageTime (orderBy descending)');
-          print('');
-          print('Index requis:');
-          print('{');
-          print('  "collectionGroup": "conversations",');
-          print('  "queryScope": "COLLECTION",');
-          print('  "fields": [');
-          print(
-            '    { "fieldPath": "participants", "arrayConfig": "CONTAINS" },',
-          );
-          print(
-            '    { "fieldPath": "lastMessageTime", "order": "DESCENDING" }',
-          );
-          print('  ]');
-          print('}');
-          print('');
-          print('📝 Solutions:');
-          print('1. Cliquez sur le lien dans l\'erreur Firebase ci-dessous');
-          print('2. Ou ajoutez l\'index manuellement dans Firebase Console');
-          print('3. Ou ajoutez dans firestore.indexes.json et déployez');
-          print('');
-          print('Erreur complète:');
-          print(error.toString());
-          print('═══════════════════════════════════════════════════════════');
-        });
+        .handleError((error) {});
   }
 
   @override

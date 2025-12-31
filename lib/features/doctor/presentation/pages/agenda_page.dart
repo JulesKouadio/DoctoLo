@@ -12,6 +12,7 @@ import '../../../../core/utils/responsive.dart' hide ResponsiveLayout;
 import '../../../../shared/widgets/responsive_layout.dart';
 import '../../../../shared/widgets/currency_widgets.dart';
 import '../../../appointment/presentation/pages/video_call_page.dart';
+import 'patient_metrics_page.dart';
 
 class AgendaPage extends StatefulWidget {
   const AgendaPage({super.key});
@@ -29,11 +30,16 @@ class _AgendaPageState extends State<AgendaPage> {
   bool _isLoading = true;
   final _currentUserId = FirebaseAuth.instance.currentUser?.uid;
 
+  // Variables de pagination
+  int _currentPage = 0;
+  final int _itemsPerPage = 4;
+  List<Map<String, dynamic>> _allEventsForDay = [];
+
   @override
   void initState() {
     super.initState();
     _selectedDay = _focusedDay;
-    _selectedEvents = ValueNotifier(_getEventsForDay(_selectedDay!));
+    _selectedEvents = ValueNotifier([]);
     _loadAppointments();
   }
 
@@ -67,7 +73,7 @@ class _AgendaPageState extends State<AgendaPage> {
       setState(() {
         _events = events;
         _isLoading = false;
-        _selectedEvents.value = _getEventsForDay(_selectedDay!);
+        _updateSelectedEvents();
       });
     } catch (e) {
       print('❌ Erreur chargement rendez-vous: $e');
@@ -80,13 +86,50 @@ class _AgendaPageState extends State<AgendaPage> {
     return _events[dateOnly] ?? [];
   }
 
+  List<Map<String, dynamic>> _getPaginatedEvents() {
+    if (_allEventsForDay.isEmpty) return [];
+
+    // Trier du plus récent au plus ancien (par heure)
+    _allEventsForDay.sort((a, b) {
+      final timeA = a['timeSlot'] as String;
+      final timeB = b['timeSlot'] as String;
+      return timeB.compareTo(
+        timeA,
+      ); // Inverse pour avoir le plus récent en premier
+    });
+
+    final startIndex = _currentPage * _itemsPerPage;
+    if (startIndex >= _allEventsForDay.length) {
+      return [];
+    }
+
+    final endIndex = startIndex + _itemsPerPage;
+    return _allEventsForDay.sublist(
+      startIndex,
+      endIndex > _allEventsForDay.length ? _allEventsForDay.length : endIndex,
+    );
+  }
+
+  int get _totalPages {
+    if (_allEventsForDay.isEmpty) return 0;
+    return (_allEventsForDay.length / _itemsPerPage).ceil();
+  }
+
+  void _updateSelectedEvents() {
+    if (_selectedDay != null) {
+      _allEventsForDay = _getEventsForDay(_selectedDay!);
+      _selectedEvents.value = _getPaginatedEvents();
+    }
+  }
+
   void _onDaySelected(DateTime selectedDay, DateTime focusedDay) {
     if (!isSameDay(_selectedDay, selectedDay)) {
       setState(() {
         _selectedDay = selectedDay;
         _focusedDay = focusedDay;
+        _currentPage = 0; // Réinitialiser à la première page
       });
-      _selectedEvents.value = _getEventsForDay(selectedDay);
+      _updateSelectedEvents();
     }
   }
 
@@ -96,6 +139,8 @@ class _AgendaPageState extends State<AgendaPage> {
         return Colors.orange;
       case 'confirmed':
         return Colors.green;
+      case 'in_progress':
+        return AppColors.accent;
       case 'completed':
         return Colors.blue;
       case 'cancelled':
@@ -284,7 +329,9 @@ class _AgendaPageState extends State<AgendaPage> {
           }
         },
         onPageChanged: (focusedDay) {
-          _focusedDay = focusedDay;
+          setState(() {
+            _focusedDay = focusedDay;
+          });
         },
       ),
     );
@@ -292,151 +339,371 @@ class _AgendaPageState extends State<AgendaPage> {
 
   Widget _buildAppointmentsList({bool isDesktop = false}) {
     final l10n = AppLocalizations.of(context)!;
-    return ValueListenableBuilder<List<Map<String, dynamic>>>(
-      valueListenable: _selectedEvents,
-      builder: (context, events, _) {
-        if (events.isEmpty) {
-          return _buildEmptyState();
-        }
+    return Column(
+      children: [
+        Expanded(
+          child: ValueListenableBuilder<List<Map<String, dynamic>>>(
+            valueListenable: _selectedEvents,
+            builder: (context, events, _) {
+              if (events.isEmpty && _allEventsForDay.isEmpty) {
+                return _buildEmptyState(hasNoAppointments: true);
+              }
 
-        // Trier les événements par heure
-        events.sort((a, b) {
-          final timeA = a['timeSlot'] as String;
-          final timeB = b['timeSlot'] as String;
-          return timeA.compareTo(timeB);
-        });
+              if (events.isEmpty && _allEventsForDay.isNotEmpty) {
+                return _buildEmptyState(hasNoAppointments: false);
+              }
 
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Padding(
-              padding: EdgeInsets.all(getProportionateScreenWidth(16)),
-              child: Row(
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(
-                    CupertinoIcons.calendar,
-                    color: AppColors.primary,
-                    size: 20,
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    DateFormat(
-                      'EEEE d MMMM yyyy',
-                      l10n.localeCode,
-                    ).format(_selectedDay!),
-                    style: TextStyle(
-                      fontSize: getProportionateScreenHeight(18),
-                      fontWeight: FontWeight.bold,
+                  Padding(
+                    padding: EdgeInsets.all(getProportionateScreenWidth(16)),
+                    child: Row(
+                      children: [
+                        Icon(
+                          CupertinoIcons.calendar,
+                          color: AppColors.primary,
+                          size: 20,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          DateFormat(
+                            'EEEE d MMMM yyyy',
+                            l10n.localeCode,
+                          ).format(_selectedDay!),
+                          style: TextStyle(
+                            fontSize: getProportionateScreenHeight(18),
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const Spacer(),
+                        Container(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: getProportionateScreenWidth(12),
+                            vertical: getProportionateScreenHeight(6),
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppColors.primary.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Text(
+                            '${_allEventsForDay.length} RDV',
+                            style: TextStyle(
+                              color: AppColors.primary,
+                              fontWeight: FontWeight.w600,
+                              fontSize: getProportionateScreenHeight(13),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  const Spacer(),
-                  Container(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: getProportionateScreenWidth(12),
-                      vertical: getProportionateScreenHeight(6),
-                    ),
-                    decoration: BoxDecoration(
-                      color: AppColors.primary.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Text(
-                      '${events.length} RDV',
-                      style: TextStyle(
-                        color: AppColors.primary,
-                        fontWeight: FontWeight.w600,
-                        fontSize: getProportionateScreenHeight(13),
+
+                  // Indicateur de pagination en haut
+                  if (_totalPages > 1)
+                    Padding(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: getProportionateScreenWidth(16),
+                        vertical: getProportionateScreenHeight(8),
                       ),
+                      child: Row(
+                        children: [
+                          const Spacer(),
+                          Text(
+                            'Page ${_currentPage + 1}/$_totalPages',
+                            style: TextStyle(
+                              color: AppColors.primary,
+                              fontSize: getProportionateScreenHeight(12),
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                  Expanded(
+                    child: ListView.separated(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: getProportionateScreenWidth(16),
+                        vertical: getProportionateScreenHeight(8),
+                      ),
+                      itemCount: events.length,
+                      separatorBuilder: (context, index) =>
+                          const SizedBox(height: 12),
+                      itemBuilder: (context, index) {
+                        return _AppointmentTimelineCard(
+                          appointment: events[index],
+                          isFirst: index == 0,
+                          isLast: index == events.length - 1,
+                          onTap: () => _showAppointmentDetails(events[index]),
+                        );
+                      },
                     ),
                   ),
                 ],
-              ),
-            ),
-            Expanded(
-              child: ListView.separated(
-                padding: EdgeInsets.symmetric(
-                  horizontal: getProportionateScreenWidth(16),
-                ),
-                itemCount: events.length,
-                separatorBuilder: (context, index) =>
-                    const SizedBox(height: 12),
-                itemBuilder: (context, index) {
-                  return _AppointmentTimelineCard(
-                    appointment: events[index],
-                    isFirst: index == 0,
-                    isLast: index == events.length - 1,
-                    onTap: () => _showAppointmentDetails(events[index]),
-                  );
-                },
-              ),
-            ),
-          ],
-        );
-      },
+              );
+            },
+          ),
+        ),
+
+        // Contrôles de pagination en bas
+        _buildPaginationControls(),
+      ],
     );
   }
 
   Widget _buildAppointmentsGrid(int crossAxisCount) {
-    return ValueListenableBuilder<List<Map<String, dynamic>>>(
-      valueListenable: _selectedEvents,
-      builder: (context, events, _) {
-        if (events.isEmpty) {
-          return _buildEmptyState();
-        }
+    return Column(
+      children: [
+        Expanded(
+          child: ValueListenableBuilder<List<Map<String, dynamic>>>(
+            valueListenable: _selectedEvents,
+            builder: (context, events, _) {
+              if (events.isEmpty && _allEventsForDay.isEmpty) {
+                return _buildEmptyState(hasNoAppointments: true);
+              }
 
-        events.sort(
-          (a, b) =>
-              (a['timeSlot'] as String).compareTo(b['timeSlot'] as String),
-        );
+              if (events.isEmpty && _allEventsForDay.isNotEmpty) {
+                return _buildEmptyState(hasNoAppointments: false);
+              }
 
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(
-                  CupertinoIcons.calendar,
-                  color: AppColors.primary,
-                  size: 20,
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  DateFormat(
-                    'EEEE d MMMM yyyy',
-                    AppLocalizations.of(context)!.localeCode,
-                  ).format(_selectedDay!),
-                  style: TextStyle(
-                    fontSize: getProportionateScreenHeight(18),
-                    fontWeight: FontWeight.bold,
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Padding(
+                    padding: EdgeInsets.all(getProportionateScreenWidth(16)),
+                    child: Row(
+                      children: [
+                        Icon(
+                          CupertinoIcons.calendar,
+                          color: AppColors.primary,
+                          size: 20,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          DateFormat(
+                            'EEEE d MMMM yyyy',
+                            AppLocalizations.of(context)!.localeCode,
+                          ).format(_selectedDay!),
+                          style: TextStyle(
+                            fontSize: getProportionateScreenHeight(18),
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const Spacer(),
+                        Container(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: getProportionateScreenWidth(12),
+                            vertical: getProportionateScreenHeight(6),
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppColors.primary.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Text(
+                            '${_allEventsForDay.length} RDV',
+                            style: TextStyle(
+                              color: AppColors.primary,
+                              fontWeight: FontWeight.w600,
+                              fontSize: getProportionateScreenHeight(13),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Expanded(
-              child: GridView.builder(
-                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: crossAxisCount,
-                  crossAxisSpacing: 16,
-                  mainAxisSpacing: 16,
-                  childAspectRatio: 1.3,
-                ),
-                itemCount: events.length,
-                itemBuilder: (context, index) {
-                  return _AppointmentCard(
-                    appointment: events[index],
-                    onTap: () => _showAppointmentDetails(events[index]),
-                  );
-                },
-              ),
-            ),
-          ],
-        );
-      },
+
+                  // Indicateur de pagination
+                  if (_totalPages > 1)
+                    Padding(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: getProportionateScreenWidth(16),
+                        vertical: getProportionateScreenHeight(8),
+                      ),
+                      child: Row(
+                        children: [
+                          const Spacer(),
+                          Text(
+                            'Page ${_currentPage + 1}/$_totalPages',
+                            style: TextStyle(
+                              color: AppColors.primary,
+                              fontSize: getProportionateScreenHeight(12),
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                  Expanded(
+                    child: GridView.builder(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: getProportionateScreenWidth(16),
+                        vertical: getProportionateScreenHeight(8),
+                      ),
+                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: crossAxisCount,
+                        crossAxisSpacing: 16,
+                        mainAxisSpacing: 16,
+                        childAspectRatio: 1.3,
+                      ),
+                      itemCount: events.length,
+                      itemBuilder: (context, index) {
+                        return _AppointmentCard(
+                          appointment: events[index],
+                          onTap: () => _showAppointmentDetails(events[index]),
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              );
+            },
+          ),
+        ),
+
+        // Contrôles de pagination en bas
+        _buildPaginationControls(),
+      ],
     );
   }
 
-  Widget _buildEmptyState() {
+  Widget _buildPaginationControls() {
+    if (_totalPages <= 1) return const SizedBox.shrink();
+
+    return Container(
+      padding: EdgeInsets.symmetric(
+        vertical: getProportionateScreenHeight(12),
+        horizontal: getProportionateScreenWidth(16),
+      ),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border(top: BorderSide(color: Colors.grey[200]!, width: 1)),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          // Bouton Précédent
+          IconButton(
+            icon: Icon(
+              CupertinoIcons.chevron_left_circle_fill,
+              size: 32,
+              color: _currentPage > 0 ? AppColors.primary : Colors.grey[300],
+            ),
+            onPressed: _currentPage > 0
+                ? () {
+                    setState(() {
+                      _currentPage--;
+                      _updateSelectedEvents();
+                    });
+                  }
+                : null,
+          ),
+
+          const SizedBox(width: 20),
+
+          // Indicateur de page
+          Container(
+            padding: EdgeInsets.symmetric(
+              horizontal: getProportionateScreenWidth(16),
+              vertical: getProportionateScreenHeight(8),
+            ),
+            decoration: BoxDecoration(
+              color: AppColors.primary.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Text(
+              'Page ${_currentPage + 1} / $_totalPages',
+              style: TextStyle(
+                color: AppColors.primary,
+                fontSize: getProportionateScreenHeight(14),
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+
+          const SizedBox(width: 20),
+
+          // Bouton Suivant
+          IconButton(
+            icon: Icon(
+              CupertinoIcons.chevron_right_circle_fill,
+              size: 32,
+              color: _currentPage < _totalPages - 1
+                  ? AppColors.primary
+                  : Colors.grey[300],
+            ),
+            onPressed: _currentPage < _totalPages - 1
+                ? () {
+                    setState(() {
+                      _currentPage++;
+                      _updateSelectedEvents();
+                    });
+                  }
+                : null,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEmptyState({required bool hasNoAppointments}) {
     final l10n = AppLocalizations.of(context)!;
+
+    if (!hasNoAppointments) {
+      // Cas où on est sur une page vide (par ex: page 2 quand il n'y a que 4 RDV)
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              CupertinoIcons.exclamationmark_circle,
+              size: 60,
+              color: Colors.orange[300],
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Page vide',
+              style: TextStyle(
+                fontSize: getProportionateScreenHeight(18),
+                color: Colors.grey[600],
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Aucun rendez-vous sur cette page',
+              style: TextStyle(
+                fontSize: getProportionateScreenHeight(14),
+                color: Colors.grey[500],
+              ),
+            ),
+            const SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: () {
+                setState(() {
+                  _currentPage = 0;
+                  _updateSelectedEvents();
+                });
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                padding: EdgeInsets.symmetric(
+                  horizontal: getProportionateScreenWidth(24),
+                  vertical: getProportionateScreenHeight(12),
+                ),
+              ),
+              child: const Text('Retour à la première page'),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // Cas où il n'y a vraiment aucun rendez-vous
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -469,6 +736,7 @@ class _AgendaPageState extends State<AgendaPage> {
   }
 
   void _showAppointmentDetails(Map<String, dynamic> appointment) {
+    final isDesktop = context.isDesktop;
     final l10n = AppLocalizations.of(context)!;
     final status = appointment['status'] as String;
     final type = appointment['type'] as String;
@@ -477,191 +745,617 @@ class _AgendaPageState extends State<AgendaPage> {
     final reason = appointment['reason'] as String? ?? '';
     final fee = appointment['fee'] as double;
 
-    showAdaptiveSheet(
-      context: context,
-      initialChildSize: 0.7,
-      minChildSize: 0.5,
-      maxChildSize: 0.9,
-      dialogWidth: 550,
-      builder: (context, scrollController) {
-        return ListView(
-          controller: scrollController,
-          padding: EdgeInsets.all(getProportionateScreenWidth(24)),
-          children: [
-            // Handle
-            Center(
-              child: Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: Colors.grey[300],
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-            ),
-            const SizedBox(height: 24),
+    if (isDesktop) {
+      // Version Desktop avec Dialog
+      showDialog(
+        context: context,
+        builder: (context) => Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 700, maxHeight: 800),
+            child: SingleChildScrollView(
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // En-tête
+                    Row(
+                      children: [
+                        CircleAvatar(
+                          radius: 30,
+                          backgroundColor: AppColors.primary.withOpacity(0.1),
+                          child: Icon(
+                            _isTelemedicine(type)
+                                ? CupertinoIcons.videocam_fill
+                                : CupertinoIcons.plus_circle,
+                            color: AppColors.primary,
+                            size: 30,
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                patientName,
+                                style: const TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 4,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: _getStatusColor(
+                                    status,
+                                  ).withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Text(
+                                  _getStatusLabel(status),
+                                  style: TextStyle(
+                                    color: _getStatusColor(status),
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        IconButton(
+                          onPressed: () => Navigator.pop(context),
+                          icon: const Icon(CupertinoIcons.xmark_circle_fill),
+                          color: Colors.grey[400],
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 32),
 
-            // En-tête
-            Row(
-              children: [
-                CircleAvatar(
-                  radius: 30,
-                  backgroundColor: AppColors.primary.withOpacity(0.1),
-                  child: Icon(
-                    type == 'telemedicine'
-                        ? CupertinoIcons.videocam_fill
-                        : CupertinoIcons.plus_circle,
-                    color: AppColors.primary,
-                    size: 30,
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        patientName,
+                    // Détails
+                    _DesktopDetailCard(
+                      icon: CupertinoIcons.calendar,
+                      title: 'Date',
+                      content: DateFormat(
+                        'EEEE d MMMM yyyy',
+                        l10n.localeCode,
+                      ).format(_selectedDay!),
+                    ),
+                    _DesktopDetailCard(
+                      icon: CupertinoIcons.clock,
+                      title: 'Heure',
+                      content: timeSlot,
+                    ),
+                    _DesktopDetailCard(
+                      icon: _getTypeIcon(type),
+                      title: 'Type',
+                      content: _getTypeLabel(type),
+                    ),
+                    _DesktopDetailCard(
+                      icon: CupertinoIcons.money_dollar,
+                      title: 'Tarif',
+                      content: '${fee.toStringAsFixed(2)} €',
+                    ),
+
+                    if (reason.isNotEmpty) ...[
+                      const SizedBox(height: 16),
+                      const Text(
+                        'Motif de consultation',
                         style: TextStyle(
-                          fontSize: getProportionateScreenHeight(20),
+                          fontSize: 16,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
-                      const SizedBox(height: 4),
+                      const SizedBox(height: 8),
                       Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 4,
-                        ),
+                        padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
-                          color: _getStatusColor(status).withOpacity(0.1),
+                          color: Colors.grey[100],
                           borderRadius: BorderRadius.circular(12),
                         ),
-                        child: Text(
-                          _getStatusLabel(status),
-                          style: TextStyle(
-                            color: _getStatusColor(status),
-                            fontWeight: FontWeight.w600,
-                            fontSize: getProportionateScreenHeight(12),
+                        child: Text(reason),
+                      ),
+                    ],
+
+                    const SizedBox(height: 32),
+
+                    // Actions - VERSION DESKTOP CORRIGÉE
+                    if (status == 'pending') ...[
+                      // Rendez-vous en attente → Boutons Refuser/Confirmer
+                      Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              onPressed: () {
+                                Navigator.pop(context);
+                                _cancelAppointment(appointment);
+                              },
+                              icon: const Icon(CupertinoIcons.xmark_circle),
+                              label: const Text('Refuser'),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: Colors.red,
+                                side: const BorderSide(color: Colors.red),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 14,
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: ElevatedButton.icon(
+                              onPressed: () {
+                                Navigator.pop(context);
+                                _confirmAppointment(appointment);
+                              },
+                              icon: const Icon(CupertinoIcons.checkmark_circle),
+                              label: const Text('Confirmer'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.green,
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 14,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ] else if (status == 'confirmed') ...[
+                      // Rendez-vous confirmé → Bouton Démarrer la consultation
+                      Center(
+                        child: ElevatedButton.icon(
+                          icon: Icon(
+                            _isTelemedicine(type)
+                                ? CupertinoIcons.videocam_fill
+                                : CupertinoIcons.play_circle_fill,
+                          ),
+                          label: Text(
+                            _isTelemedicine(type)
+                                ? 'Démarrer la téléconsultation'
+                                : 'Démarrer la consultation',
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primary,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 32,
+                              vertical: 16,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          onPressed: () {
+                            if (_isTelemedicine(type)) {
+                              Navigator.pop(context);
+                              _startVideoCall(appointment);
+                            } else {
+                              Navigator.pop(context);
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => PatientConsultationPage(
+                                    patientId: appointment['patientId'] ?? '',
+                                    patientName:
+                                        appointment['patientName'] ?? '',
+                                  ),
+                                ),
+                              );
+                            }
+                          },
+                        ),
+                      ),
+                    ] else if (status == 'in_progress') ...[
+                      // Consultation en cours → Bouton Reprendre
+                      Center(
+                        child: ElevatedButton.icon(
+                          icon: const Icon(CupertinoIcons.play_circle_fill),
+                          label: const Text('Reprendre la consultation'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.accent,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 32,
+                              vertical: 16,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          onPressed: () {
+                            Navigator.pop(context);
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => PatientConsultationPage(
+                                  patientId: appointment['patientId'] ?? '',
+                                  patientName: appointment['patientName'] ?? '',
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    ] else if (status == 'completed') ...[
+                      // Consultation terminée → Message de statut
+                      Center(
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 24,
+                            vertical: 12,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.green.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: Colors.green),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                CupertinoIcons.checkmark_alt_circle,
+                                color: Colors.green,
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                'Consultation terminée',
+                                style: TextStyle(
+                                  color: Colors.green,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ] else if (status == 'cancelled') ...[
+                      // Rendez-vous annulé → Message de statut
+                      Center(
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 24,
+                            vertical: 12,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.red.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: Colors.red),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                CupertinoIcons.xmark_circle,
+                                color: Colors.red,
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                'Rendez-vous annulé',
+                                style: TextStyle(
+                                  color: Colors.red,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+    } else {
+      // Version Mobile/Tablette (BottomSheet)
+      showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: Colors.transparent,
+        builder: (context) {
+          return Container(
+            margin: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: ListView(
+              padding: const EdgeInsets.all(24),
+              shrinkWrap: true,
+              children: [
+                // Handle
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: Colors.grey[300],
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 24),
+
+                // En-tête
+                Row(
+                  children: [
+                    CircleAvatar(
+                      radius: 30,
+                      backgroundColor: AppColors.primary.withOpacity(0.1),
+                      child: Icon(
+                        _isTelemedicine(type)
+                            ? CupertinoIcons.videocam_fill
+                            : CupertinoIcons.plus_circle,
+                        color: AppColors.primary,
+                        size: 30,
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            patientName,
+                            style: TextStyle(
+                              fontSize: getProportionateScreenHeight(20),
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: _getStatusColor(status).withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              _getStatusLabel(status),
+                              style: TextStyle(
+                                color: _getStatusColor(status),
+                                fontWeight: FontWeight.w600,
+                                fontSize: getProportionateScreenHeight(12),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 32),
+
+                // Détails
+                _DetailRow(
+                  icon: CupertinoIcons.calendar,
+                  label: 'Date',
+                  value: DateFormat(
+                    'EEEE d MMMM yyyy',
+                    l10n.localeCode,
+                  ).format(_selectedDay!),
+                ),
+                _DetailRow(
+                  icon: CupertinoIcons.clock,
+                  label: 'Heure',
+                  value: timeSlot,
+                ),
+                _DetailRow(
+                  icon: _getTypeIcon(type),
+                  label: 'Type',
+                  value: _getTypeLabel(type),
+                ),
+                _DetailRowWithCurrency(
+                  icon: CupertinoIcons.money_dollar,
+                  label: 'Tarif',
+                  amount: fee,
+                ),
+
+                if (reason.isNotEmpty) ...[
+                  const SizedBox(height: 16),
+                  Text(
+                    'Motif de consultation',
+                    style: TextStyle(
+                      fontSize: getProportionateScreenHeight(16),
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Container(
+                    padding: EdgeInsets.all(getProportionateScreenWidth(12)),
+                    decoration: BoxDecoration(
+                      color: Colors.grey[100],
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(reason),
+                  ),
+                ],
+
+                const SizedBox(height: 32),
+
+                // Actions - VERSION MOBILE CORRIGÉE
+                if (status == 'pending') ...[
+                  // Rendez-vous en attente → Boutons Refuser/Confirmer
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: () {
+                            Navigator.pop(context);
+                            _cancelAppointment(appointment);
+                          },
+                          icon: const Icon(CupertinoIcons.xmark_circle),
+                          label: const Text('Refuser'),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: Colors.red,
+                            side: const BorderSide(color: Colors.red),
+                            padding: EdgeInsets.symmetric(
+                              vertical: getProportionateScreenHeight(14),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: () {
+                            Navigator.pop(context);
+                            _confirmAppointment(appointment);
+                          },
+                          icon: const Icon(CupertinoIcons.checkmark_circle),
+                          label: const Text('Confirmer'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.green,
+                            foregroundColor: Colors.white,
+                            padding: EdgeInsets.symmetric(
+                              vertical: getProportionateScreenHeight(14),
+                            ),
                           ),
                         ),
                       ),
                     ],
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 32),
-
-            // Détails
-            _DetailRow(
-              icon: CupertinoIcons.calendar,
-              label: 'Date',
-              value: DateFormat(
-                'EEEE d MMMM yyyy',
-                l10n.localeCode,
-              ).format(_selectedDay!),
-            ),
-            _DetailRow(
-              icon: CupertinoIcons.clock,
-              label: 'Heure',
-              value: timeSlot,
-            ),
-            _DetailRow(
-              icon: _getTypeIcon(type),
-              label: 'Type',
-              value: _getTypeLabel(type),
-            ),
-            _DetailRowWithCurrency(
-              icon: CupertinoIcons.money_dollar,
-              label: 'Tarif',
-              amount: fee,
-            ),
-
-            if (reason.isNotEmpty) ...[
-              const SizedBox(height: 16),
-              Text(
-                'Motif de consultation',
-                style: TextStyle(
-                  fontSize: getProportionateScreenHeight(16),
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Container(
-                padding: EdgeInsets.all(getProportionateScreenWidth(12)),
-                decoration: BoxDecoration(
-                  color: Colors.grey[100],
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(reason),
-              ),
-            ],
-
-            const SizedBox(height: 32),
-
-            // Actions
-            if (status == 'pending') ...[
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: () {
+                ] else if (status == 'confirmed') ...[
+                  // Rendez-vous confirmé → Bouton Démarrer la consultation
+                  ElevatedButton.icon(
+                    onPressed: () {
+                      if (_isTelemedicine(type)) {
                         Navigator.pop(context);
-                        _cancelAppointment(appointment);
-                      },
-                      icon: const Icon(CupertinoIcons.xmark_circle),
-                      label: const Text('Refuser'),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: Colors.red,
-                        side: const BorderSide(color: Colors.red),
-                        padding: EdgeInsets.symmetric(
-                          vertical: getProportionateScreenHeight(14),
-                        ),
+                        _startVideoCall(appointment);
+                      } else {
+                        Navigator.pop(context);
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => PatientConsultationPage(
+                              patientId: appointment['patientId'] ?? '',
+                              patientName: appointment['patientName'] ?? '',
+                            ),
+                          ),
+                        );
+                      }
+                    },
+                    icon: Icon(
+                      _isTelemedicine(type)
+                          ? CupertinoIcons.videocam_fill
+                          : CupertinoIcons.play_circle_fill,
+                    ),
+                    label: Text(
+                      _isTelemedicine(type)
+                          ? 'Démarrer la téléconsultation'
+                          : 'Démarrer la consultation',
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: Colors.white,
+                      padding: EdgeInsets.symmetric(
+                        vertical: getProportionateScreenHeight(14),
                       ),
                     ),
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      onPressed: () {
-                        Navigator.pop(context);
-                        _confirmAppointment(appointment);
-                      },
-                      icon: const Icon(CupertinoIcons.checkmark_circle),
-                      label: const Text('Confirmer'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.green,
-                        foregroundColor: Colors.white,
-                        padding: EdgeInsets.symmetric(
-                          vertical: getProportionateScreenHeight(14),
+                ] else if (status == 'in_progress') ...[
+                  // Consultation en cours → Bouton Reprendre
+                  ElevatedButton.icon(
+                    onPressed: () {
+                      Navigator.pop(context);
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => PatientConsultationPage(
+                            patientId: appointment['patientId'] ?? '',
+                            patientName: appointment['patientName'] ?? '',
+                          ),
                         ),
+                      );
+                    },
+                    icon: const Icon(CupertinoIcons.play_circle_fill),
+                    label: const Text('Reprendre la consultation'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.accent,
+                      foregroundColor: Colors.white,
+                      padding: EdgeInsets.symmetric(
+                        vertical: getProportionateScreenHeight(14),
                       ),
+                    ),
+                  ),
+                ] else if (status == 'completed') ...[
+                  // Consultation terminée → Message de statut
+                  Container(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: getProportionateScreenWidth(24),
+                      vertical: getProportionateScreenHeight(12),
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.green.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.green),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          CupertinoIcons.checkmark_alt_circle,
+                          color: Colors.green,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Consultation terminée',
+                          style: TextStyle(
+                            color: Colors.green,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ] else if (status == 'cancelled') ...[
+                  // Rendez-vous annulé → Message de statut
+                  Container(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: getProportionateScreenWidth(24),
+                      vertical: getProportionateScreenHeight(12),
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.red.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.red),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(CupertinoIcons.xmark_circle, color: Colors.red),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Rendez-vous annulé',
+                          style: TextStyle(
+                            color: Colors.red,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],
-              ),
-            ] else if (status == 'confirmed' && _isTelemedicine(type)) ...[
-              ElevatedButton.icon(
-                onPressed: () {
-                  Navigator.pop(context);
-                  _startVideoCall(appointment);
-                },
-                icon: const Icon(CupertinoIcons.videocam),
-                label: const Text('Démarrer la téléconsultation'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: Colors.white,
-                  padding: EdgeInsets.symmetric(
-                    vertical: getProportionateScreenHeight(14),
-                  ),
-                ),
-              ),
-            ],
-          ],
-        );
-      },
-    );
+              ],
+            ),
+          );
+        },
+      );
+    }
   }
 
   String _getStatusLabel(String status) {
@@ -670,6 +1364,8 @@ class _AgendaPageState extends State<AgendaPage> {
         return 'En attente';
       case 'confirmed':
         return 'Confirmé';
+      case 'in_progress':
+        return 'En cours';
       case 'completed':
         return 'Terminé';
       case 'cancelled':
@@ -859,6 +1555,8 @@ class _AppointmentTimelineCard extends StatelessWidget {
         return Colors.orange;
       case 'confirmed':
         return Colors.green;
+      case 'in_progress':
+        return AppColors.accent;
       case 'completed':
         return Colors.blue;
       case 'cancelled':
@@ -1054,6 +1752,8 @@ class _AppointmentTimelineCard extends StatelessWidget {
         return 'En attente';
       case 'confirmed':
         return 'Confirmé';
+      case 'in_progress':
+        return 'En cours';
       case 'completed':
         return 'Terminé';
       case 'cancelled':
@@ -1076,6 +1776,8 @@ class _AppointmentCard extends StatelessWidget {
         return Colors.orange;
       case 'confirmed':
         return Colors.green;
+      case 'in_progress':
+        return AppColors.accent;
       case 'completed':
         return Colors.blue;
       case 'cancelled':
@@ -1179,6 +1881,8 @@ class _AppointmentCard extends StatelessWidget {
         return 'En attente';
       case 'confirmed':
         return 'Confirmé';
+      case 'in_progress':
+        return 'En cours';
       case 'completed':
         return 'Terminé';
       case 'cancelled':
@@ -1271,6 +1975,68 @@ class _DetailRowWithCurrency extends StatelessWidget {
                   amount: amount,
                   style: TextStyle(
                     fontSize: getProportionateScreenHeight(15),
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// Widget pour les cartes de détail desktop
+class _DesktopDetailCard extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String content;
+
+  const _DesktopDetailCard({
+    required this.icon,
+    required this.title,
+    required this.content,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.grey[50],
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey[200]!),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: AppColors.primary.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(icon, size: 20, color: AppColors.primary),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  content,
+                  style: const TextStyle(
+                    fontSize: 16,
                     fontWeight: FontWeight.w600,
                   ),
                 ),

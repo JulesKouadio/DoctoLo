@@ -22,6 +22,7 @@ class AgendaSlotCard extends StatelessWidget {
     this.isCompleted = false,
     this.onTap,
     this.onMarkComplete,
+    required status,
   });
 
   @override
@@ -33,7 +34,10 @@ class AgendaSlotCard extends StatelessWidget {
         children: [
           // Time Badge
           Container(
-            padding: EdgeInsets.symmetric(horizontal: getProportionateScreenWidth(12), vertical: getProportionateScreenHeight(8)),
+            padding: EdgeInsets.symmetric(
+              horizontal: getProportionateScreenWidth(12),
+              vertical: getProportionateScreenHeight(8),
+            ),
             decoration: BoxDecoration(
               color: isCompleted
                   ? AppColors.success.withOpacity(0.1)

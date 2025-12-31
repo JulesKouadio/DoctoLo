@@ -68,8 +68,8 @@ dependencies:
   path_provider: ^2.1.4
   
   # PDF
-  pdf: ^3.11.1
-  printing: ^5.13.3
+  pdf: ^3.11.3
+  printing: ^5.14.2
   
   # HTTP & API
   dio: ^5.7.0
@@ -90,7 +90,7 @@ dependencies:
   mobile_scanner: ^6.0.2
   
   # Charts & Analytics
-  fl_chart: ^0.69.2
+  fl_chart: ^1.1.1
   
   # Localization
   flutter_localizations:

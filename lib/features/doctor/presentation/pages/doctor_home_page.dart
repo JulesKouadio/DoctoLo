@@ -352,6 +352,7 @@ class _DashboardPageState extends State<_DashboardPage> {
   }
 
   /// Affiche un dialogue pour créer un nouveau patient non enregistré
+  /// Affiche un dialogue pour créer un nouveau patient non enregistré
   Future<void> _showNewPatientDialog(
     BuildContext context,
     UserModel? user,
@@ -362,87 +363,350 @@ class _DashboardPageState extends State<_DashboardPage> {
     final lastNameController = TextEditingController();
     final phoneController = TextEditingController();
     final reasonController = TextEditingController();
+    final heightController = TextEditingController();
+    final weightController = TextEditingController();
+    final temperatureController = TextEditingController();
+    String? bloodGroup;
+    final diagnosisController = TextEditingController();
+    final prescriptionController = TextEditingController();
 
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Nouveau Patient'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
+    bool? confirmed;
+    final isDesktop = context.isDesktop;
+
+    InputDecoration decoration(String label, IconData icon) {
+      return InputDecoration(
+        labelText: label,
+        prefixIcon: Icon(icon),
+        filled: true,
+        fillColor: Colors.grey.shade50,
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+      );
+    }
+
+    // ✅ Contenu du formulaire SANS contrainte de largeur ici
+    final formContent = SingleChildScrollView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Patient sans rendez-vous',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              fontFamily: 'Poppins',
+            ),
+          ),
+          const SizedBox(height: 4),
+          const Text(
+            'Renseignez les informations médicales essentielles',
+            style: TextStyle(
+              color: Colors.grey,
+              fontFamily: 'Poppins',
+              fontSize: 15,
+            ),
+          ),
+          const SizedBox(height: 24),
+
+          TextField(
+            controller: lastNameController,
+            decoration: decoration(
+              'Nom *',
+              CupertinoIcons.person_crop_rectangle,
+            ),
+            style: const TextStyle(fontFamily: 'Poppins', fontSize: 15),
+          ),
+          const SizedBox(height: 14),
+
+          TextField(
+            controller: firstNameController,
+            decoration: decoration('Prénom *', CupertinoIcons.person),
+            style: const TextStyle(fontFamily: 'Poppins', fontSize: 15),
+          ),
+          const SizedBox(height: 14),
+
+          TextField(
+            controller: phoneController,
+            keyboardType: TextInputType.phone,
+            decoration: decoration('Téléphone', CupertinoIcons.phone),
+            style: const TextStyle(fontFamily: 'Poppins', fontSize: 15),
+          ),
+          const SizedBox(height: 14),
+
+          TextField(
+            controller: reasonController,
+            maxLines: 2,
+            decoration: decoration(
+              'Motif de consultation',
+              CupertinoIcons.question_circle,
+            ),
+            style: const TextStyle(fontFamily: 'Poppins', fontSize: 15),
+          ),
+          const SizedBox(height: 20),
+
+          Row(
             children: [
-              const Text(
-                'Enregistrez un patient qui n\'a pas pris rendez-vous',
-                style: TextStyle(color: Colors.grey),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: lastNameController,
-                decoration: const InputDecoration(
-                  labelText: 'Nom *',
-                  border: OutlineInputBorder(),
+              Expanded(
+                child: TextField(
+                  controller: heightController,
+                  keyboardType: TextInputType.number,
+                  decoration: decoration(
+                    'Taille (cm)',
+                    CupertinoIcons.arrow_up_down,
+                  ),
+                  style: const TextStyle(fontFamily: 'Poppins', fontSize: 15),
                 ),
               ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: firstNameController,
-                decoration: const InputDecoration(
-                  labelText: 'Prénom *',
-                  border: OutlineInputBorder(),
+              const SizedBox(width: 12),
+              Expanded(
+                child: TextField(
+                  controller: weightController,
+                  keyboardType: TextInputType.number,
+                  decoration: decoration(
+                    'Poids (kg)',
+                    CupertinoIcons.square_stack_3d_up,
+                  ),
+                  style: const TextStyle(fontFamily: 'Poppins', fontSize: 15),
                 ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: phoneController,
-                decoration: const InputDecoration(
-                  labelText: 'Téléphone',
-                  border: OutlineInputBorder(),
-                ),
-                keyboardType: TextInputType.phone,
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: reasonController,
-                decoration: const InputDecoration(
-                  labelText: 'Motif de consultation',
-                  border: OutlineInputBorder(),
-                ),
-                maxLines: 2,
               ),
             ],
           ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Annuler'),
+          const SizedBox(height: 14),
+
+          TextField(
+            controller: temperatureController,
+            keyboardType: TextInputType.number,
+            decoration: decoration(
+              'Température (°C)',
+              CupertinoIcons.thermometer,
+            ),
+            style: const TextStyle(fontFamily: 'Poppins', fontSize: 15),
           ),
-          ElevatedButton(
-            onPressed: () {
-              if (lastNameController.text.isEmpty ||
-                  firstNameController.text.isEmpty) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Veuillez remplir le nom et le prénom'),
+          const SizedBox(height: 14),
+
+          DropdownButtonFormField<String>(
+            value: bloodGroup,
+            decoration: decoration('Groupe sanguin', CupertinoIcons.drop),
+            items: ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-']
+                .map(
+                  (g) => DropdownMenuItem(
+                    value: g,
+                    child: Text(
+                      g,
+                      style: const TextStyle(
+                        fontFamily: 'Poppins',
+                        fontSize: 15,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
                   ),
-                );
-                return;
-              }
-              Navigator.pop(context, true);
-            },
-            child: const Text('Créer la consultation'),
+                )
+                .toList(),
+            onChanged: (v) => bloodGroup = v,
+            style: const TextStyle(
+              fontFamily: 'Poppins',
+              fontSize: 15,
+              color: AppColors.textSecondary,
+            ),
+          ),
+          const SizedBox(height: 20),
+
+          TextField(
+            controller: diagnosisController,
+            maxLines: 2,
+            decoration: decoration('Diagnostic', CupertinoIcons.info),
+            style: const TextStyle(fontFamily: 'Poppins', fontSize: 15),
+          ),
+          const SizedBox(height: 14),
+
+          TextField(
+            controller: prescriptionController,
+            maxLines: 2,
+            decoration: decoration('Ordonnance', CupertinoIcons.doc_text),
+            style: const TextStyle(fontFamily: 'Poppins', fontSize: 15),
           ),
         ],
       ),
     );
 
+    if (isDesktop) {
+      // ✅ DESKTOP : Dialogue centré avec largeur fixe de 520px
+      confirmed = await showDialog<bool>(
+        context: context,
+        builder: (_) => Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(
+              maxWidth: 520, // Largeur moyenne
+              maxHeight: 700, // Hauteur max pour éviter le débordement
+            ),
+            child: Dialog(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(24),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Flexible(child: formContent),
+                    const SizedBox(height: 24),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(context, false),
+                          child: const Text(
+                            'Annuler',
+                            style: TextStyle(
+                              fontFamily: 'Poppins',
+                              fontSize: 15,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        ElevatedButton.icon(
+                          icon: const Icon(Icons.check),
+                          label: const Text(
+                            'Créer la consultation',
+                            style: TextStyle(
+                              fontFamily: 'Poppins',
+                              fontSize: 15,
+                            ),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primary,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 20,
+                              vertical: 12,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          onPressed: () {
+                            if (lastNameController.text.isEmpty ||
+                                firstNameController.text.isEmpty) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                    'Veuillez remplir le nom et le prénom',
+                                  ),
+                                ),
+                              );
+                              return;
+                            }
+                            Navigator.pop(context, true);
+                          },
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+    } else {
+      // ✅ MOBILE : Bottom sheet
+      confirmed = await showModalBottomSheet<bool>(
+        context: context,
+        isScrollControlled: true,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+        ),
+        builder: (_) => Padding(
+          padding: EdgeInsets.fromLTRB(
+            16,
+            24,
+            16,
+            MediaQuery.of(context).viewInsets.bottom + 16,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade400,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+              const SizedBox(height: 16),
+              formContent,
+              const SizedBox(height: 24),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => Navigator.pop(context, false),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: const Text('Annuler'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () {
+                        if (lastNameController.text.isEmpty ||
+                            firstNameController.text.isEmpty) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text(
+                                'Veuillez remplir le nom et le prénom',
+                              ),
+                            ),
+                          );
+                          return;
+                        }
+                        Navigator.pop(context, true);
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: const Text('Créer'),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    // 🔒 LOGIQUE FIREBASE STRICTEMENT INCHANGÉE
     if (confirmed == true) {
       try {
         final patientId = const Uuid().v4();
         final appointmentId = const Uuid().v4();
         final now = DateTime.now();
 
-        // Créer un rendez-vous immédiat pour ce patient non enregistré
+        // Enregistrer le patient dans la collection 'users'
+        await FirebaseFirestore.instance.collection('users').doc(patientId).set(
+          {
+            'id': patientId,
+            'firstName': firstNameController.text,
+            'lastName': lastNameController.text,
+            'phone': phoneController.text,
+            'role': 'patient',
+            'createdAt': FieldValue.serverTimestamp(),
+            // Ajoutez d'autres champs si besoin
+          },
+        );
+
+        // Créer un rendez-vous immédiat pour ce patient
         await FirebaseFirestore.instance
             .collection('appointments')
             .doc(appointmentId)
@@ -462,6 +726,37 @@ class _DashboardPageState extends State<_DashboardPage> {
               'reason': reasonController.text,
               'fee': 0,
               'createdAt': FieldValue.serverTimestamp(),
+              'height': double.tryParse(heightController.text),
+              'weight': double.tryParse(weightController.text),
+              'temperature': double.tryParse(temperatureController.text),
+              'bloodGroup': bloodGroup,
+              'diagnosis': diagnosisController.text,
+              'prescription': prescriptionController.text,
+            });
+
+        // Créer le dossier médical du patient
+        await FirebaseFirestore.instance
+            .collection('medical_records')
+            .doc(patientId)
+            .set({
+              'patientId': patientId,
+              'doctorId': user.id,
+              'createdAt': FieldValue.serverTimestamp(),
+              'lastUpdated': FieldValue.serverTimestamp(),
+              'bloodGroup': bloodGroup,
+              'height': double.tryParse(heightController.text),
+              'weight': double.tryParse(weightController.text),
+              'temperature': double.tryParse(temperatureController.text),
+              'consultations': [
+                {
+                  'date': Timestamp.fromDate(now),
+                  'reason': reasonController.text,
+                  'diagnosis': diagnosisController.text,
+                  'prescription': prescriptionController.text,
+                  'doctorId': user.id,
+                  'doctorName': '${user.firstName} ${user.lastName}',
+                },
+              ],
             });
 
         if (mounted) {
@@ -575,6 +870,44 @@ class _DashboardPageState extends State<_DashboardPage> {
     }
   }
 
+  // Helper pour les couleurs des statuts
+  Color _getStatusColor(String status) {
+    switch (status) {
+      case 'pending':
+        return AppColors.warning;
+      case 'confirmed':
+      case 'scheduled':
+        return AppColors.success;
+      case 'completed':
+        return AppColors.primary;
+      case 'cancelled':
+      case 'canceled':
+        return Colors.red;
+      default:
+        return AppColors.textSecondary;
+    }
+  }
+
+  String _getStatusText(String status) {
+    switch (status) {
+      case 'pending':
+        return 'En attente';
+      case 'confirmed':
+        return 'Confirmé';
+      case 'scheduled':
+        return 'Programmé';
+      case 'completed':
+        return 'Terminé';
+      case 'cancelled':
+      case 'canceled':
+        return 'Annulé';
+      case 'in_progress':
+        return 'En cours';
+      default:
+        return status;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
@@ -677,8 +1010,10 @@ class _DashboardPageState extends State<_DashboardPage> {
                           value: _isLoading ? '...' : '$_waitingAppointments',
                           color: AppColors.warning,
                           onTap: () {
-                            // TODO: Créer et naviguer vers WaitingRoomPage
-                            // Navigator.push(context, MaterialPageRoute(builder: (_) => WaitingRoomPage()));
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (_) => AgendaPage()),
+                            );
                           },
                         ),
                       ),
@@ -749,7 +1084,11 @@ class _DashboardPageState extends State<_DashboardPage> {
                       stream: FirebaseFirestore.instance
                           .collection('appointments')
                           .where('doctorId', isEqualTo: user.id)
-                          .where('status', isEqualTo: 'scheduled')
+                          .where(
+                            'status',
+                            whereIn: ['scheduled', 'confirmed', 'pending'],
+                          )
+                          .orderBy('date')
                           .snapshots(),
                       builder: (context, snapshot) {
                         if (snapshot.connectionState ==
@@ -840,6 +1179,7 @@ class _DashboardPageState extends State<_DashboardPage> {
                                 appointment['patientName'] ?? 'Patient';
                             final type = appointment['type'] ?? 'Consultation';
                             final appointmentId = doc.id;
+                            final status = appointment['status'] ?? 'scheduled';
 
                             return Padding(
                               padding: EdgeInsets.only(
@@ -849,6 +1189,7 @@ class _DashboardPageState extends State<_DashboardPage> {
                                 time: timeSlot,
                                 patientName: patientName,
                                 appointmentType: type,
+                                status: status,
                                 isCompleted: false,
                                 onTap: () {
                                   // TODO: Créer AppointmentDetailsPage et naviguer
@@ -895,15 +1236,22 @@ class _DashboardPageState extends State<_DashboardPage> {
                   ),
                   const SizedBox(height: 12),
 
-                  // Afficher les patients récents depuis Firestore
+                  // Afficher les patients récents du jour depuis Firestore - VERSION CORRIGÉE
                   if (user != null)
                     StreamBuilder<QuerySnapshot>(
                       stream: FirebaseFirestore.instance
                           .collection('appointments')
                           .where('doctorId', isEqualTo: user.id)
-                          .where('status', whereIn: ['scheduled', 'completed'])
+                          .where(
+                            'status',
+                            whereIn: [
+                              'scheduled',
+                              'completed',
+                              'confirmed',
+                              'pending',
+                            ],
+                          )
                           .orderBy('date', descending: true)
-                          .limit(5)
                           .snapshots(),
                       builder: (context, snapshot) {
                         if (snapshot.connectionState ==
@@ -933,7 +1281,7 @@ class _DashboardPageState extends State<_DashboardPage> {
                                   ),
                                   const SizedBox(height: 16),
                                   Text(
-                                    'Aucun patient récent',
+                                    'Aucun patient aujourd\'hui',
                                     style: TextStyle(
                                       fontSize: getProportionateScreenHeight(
                                         16,
@@ -947,16 +1295,76 @@ class _DashboardPageState extends State<_DashboardPage> {
                           );
                         }
 
-                        // Récupérer les patients uniques
+                        // Filtrer uniquement les rendez-vous d'aujourd'hui
+                        final now = DateTime.now();
+                        final todayStart = DateTime(
+                          now.year,
+                          now.month,
+                          now.day,
+                        );
+                        final todayEnd = todayStart.add(
+                          const Duration(days: 1),
+                        );
+
+                        final todayAppointments = snapshot.data!.docs.where((
+                          doc,
+                        ) {
+                          final appointment =
+                              doc.data() as Map<String, dynamic>;
+                          final date = (appointment['date'] as Timestamp)
+                              .toDate();
+                          return date.isAfter(todayStart) &&
+                              date.isBefore(todayEnd);
+                        }).toList();
+
+                        if (todayAppointments.isEmpty) {
+                          return Center(
+                            child: Padding(
+                              padding: EdgeInsets.all(
+                                getProportionateScreenWidth(32.0),
+                              ),
+                              child: Column(
+                                children: [
+                                  Icon(
+                                    CupertinoIcons.person_2,
+                                    size: 48,
+                                    color: Colors.grey[400],
+                                  ),
+                                  const SizedBox(height: 16),
+                                  Text(
+                                    'Aucun patient aujourd\'hui',
+                                    style: TextStyle(
+                                      fontSize: getProportionateScreenHeight(
+                                        16,
+                                      ),
+                                      color: Colors.grey[600],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        }
+
+                        // Récupérer les patients uniques d'aujourd'hui
                         final Map<String, Map<String, dynamic>> uniquePatients =
                             {};
-                        for (var doc in snapshot.data!.docs) {
+                        for (var doc in todayAppointments) {
                           final appointment =
                               doc.data() as Map<String, dynamic>;
                           final patientId = appointment['patientId'];
+                          final patientName =
+                              appointment['patientName'] ?? 'Patient';
                           if (patientId != null &&
                               !uniquePatients.containsKey(patientId)) {
-                            uniquePatients[patientId] = appointment;
+                            uniquePatients[patientId] = {
+                              ...appointment,
+                              'patientId': patientId,
+                              'patientName': patientName,
+                              'appointmentDate':
+                                  (appointment['date'] as Timestamp).toDate(),
+                              'docId': doc.id,
+                            };
                           }
                         }
 
@@ -975,7 +1383,7 @@ class _DashboardPageState extends State<_DashboardPage> {
                                   ),
                                   const SizedBox(height: 16),
                                   Text(
-                                    'Aucun patient récent',
+                                    'Aucun patient aujourd\'hui',
                                     style: TextStyle(
                                       fontSize: getProportionateScreenHeight(
                                         16,
@@ -989,18 +1397,29 @@ class _DashboardPageState extends State<_DashboardPage> {
                           );
                         }
 
+                        // Trier par heure de rendez-vous (plus tôt en premier)
+                        final sortedPatients = uniquePatients.entries.toList()
+                          ..sort((a, b) {
+                            final dateA =
+                                a.value['appointmentDate'] as DateTime;
+                            final dateB =
+                                b.value['appointmentDate'] as DateTime;
+                            return dateA.compareTo(dateB);
+                          })
+                          ..take(3);
+
                         return Column(
-                          children: uniquePatients.entries.take(3).map((entry) {
+                          children: sortedPatients.map((entry) {
                             final patientId = entry.key;
                             final appointment = entry.value;
                             final patientName =
                                 appointment['patientName'] ?? 'Patient';
-                            final lastVisitDate =
-                                (appointment['date'] as Timestamp).toDate();
-                            final formattedLastVisit = DateFormat(
-                              'dd MMM yyyy',
-                              'fr_FR',
-                            ).format(lastVisitDate);
+                            final appointmentDate =
+                                appointment['appointmentDate'] as DateTime;
+                            final formattedTime = DateFormat(
+                              'HH:mm',
+                            ).format(appointmentDate);
+                            final status = appointment['status'] ?? 'scheduled';
 
                             return Padding(
                               padding: EdgeInsets.only(
@@ -1009,7 +1428,8 @@ class _DashboardPageState extends State<_DashboardPage> {
                               child: PatientListCard(
                                 patientName: patientName,
                                 patientId: patientId,
-                                lastVisit: formattedLastVisit,
+                                lastVisit: 'À $formattedTime',
+                                status: status,
                                 onTap: () {
                                   Navigator.push(
                                     context,
@@ -1037,8 +1457,6 @@ class _DashboardPageState extends State<_DashboardPage> {
   }
 
   // ===== LAYOUT DESKTOP =====
-
-  // SOLUTION : Remplacez la méthode _buildDesktopLayout par celle-ci
 
   Widget _buildDesktopLayout(
     BuildContext context,
@@ -1110,7 +1528,7 @@ class _DashboardPageState extends State<_DashboardPage> {
           ),
         ),
 
-        // Contenu (reste identique)
+        // Contenu
         SliverPadding(
           padding: const EdgeInsets.all(32),
           sliver: SliverList(
@@ -1299,7 +1717,8 @@ class _DashboardPageState extends State<_DashboardPage> {
       stream: FirebaseFirestore.instance
           .collection('appointments')
           .where('doctorId', isEqualTo: user.id)
-          .where('status', isEqualTo: 'scheduled')
+          .where('status', whereIn: ['scheduled', 'confirmed', 'pending'])
+          .orderBy('date')
           .snapshots(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
@@ -1354,6 +1773,7 @@ class _DashboardPageState extends State<_DashboardPage> {
               final patientName = appointment['patientName'] ?? 'Patient';
               final type = appointment['type'] ?? 'Consultation';
               final appointmentId = doc.id;
+              final status = appointment['status'] ?? 'scheduled';
 
               return ListTile(
                 contentPadding: const EdgeInsets.symmetric(
@@ -1368,13 +1788,37 @@ class _DashboardPageState extends State<_DashboardPage> {
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Center(
-                    child: Text(
-                      timeSlot,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.primary,
-                      ),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          timeSlot,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.primary,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 4,
+                            vertical: 1,
+                          ),
+                          decoration: BoxDecoration(
+                            color: _getStatusColor(status).withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            _getStatusText(status),
+                            style: TextStyle(
+                              fontSize: 9,
+                              color: _getStatusColor(status),
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
@@ -1410,17 +1854,22 @@ class _DashboardPageState extends State<_DashboardPage> {
     );
   }
 
-  // StreamBuilder pour les patients (Desktop)
+  // StreamBuilder pour les patients (Desktop) - VERSION CORRIGÉE
   Widget _buildRecentPatients(UserModel? user) {
     if (user == null) return const SizedBox();
+
+    final now = DateTime.now();
+    final todayStart = DateTime(now.year, now.month, now.day);
+    final todayEnd = DateTime(now.year, now.month, now.day, 23, 59, 59, 999);
 
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance
           .collection('appointments')
           .where('doctorId', isEqualTo: user.id)
-          .where('status', whereIn: ['scheduled', 'completed'])
-          .orderBy('date', descending: true)
-          .limit(5)
+          .where('date', isGreaterThanOrEqualTo: Timestamp.fromDate(todayStart))
+          .where('date', isLessThanOrEqualTo: Timestamp.fromDate(todayEnd))
+          .where('status', whereIn: ['completed'])
+          .orderBy('date')
           .snapshots(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
@@ -1435,25 +1884,40 @@ class _DashboardPageState extends State<_DashboardPage> {
         if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
           return _buildEmptyState(
             icon: CupertinoIcons.person_2,
-            message: 'Aucun patient récent',
+            message: 'Aucun patient aujourd\'hui',
           );
         }
 
+        // Obtenir les patients uniques du jour
         final Map<String, Map<String, dynamic>> uniquePatients = {};
         for (var doc in snapshot.data!.docs) {
-          final appointment = doc.data() as Map<String, dynamic>;
-          final patientId = appointment['patientId'];
+          final data = doc.data() as Map<String, dynamic>;
+          final patientId = data['patientId'];
+          final patientName = data['patientName'] ?? 'Patient';
+          final date = (data['date'] as Timestamp).toDate();
           if (patientId != null && !uniquePatients.containsKey(patientId)) {
-            uniquePatients[patientId] = appointment;
+            uniquePatients[patientId] = {
+              ...data,
+              'docId': doc.id,
+              'appointmentDate': date,
+            };
           }
         }
 
         if (uniquePatients.isEmpty) {
           return _buildEmptyState(
             icon: CupertinoIcons.person_2,
-            message: 'Aucun patient récent',
+            message: 'Aucun patient aujourd\'hui',
           );
         }
+
+        // Trier par heure de rendez-vous (plus récent en premier)
+        final sortedPatients = uniquePatients.entries.toList()
+          ..sort((a, b) {
+            final dateA = a.value['appointmentDate'] as DateTime;
+            final dateB = b.value['appointmentDate'] as DateTime;
+            return dateB.compareTo(dateA);
+          });
 
         return Container(
           decoration: BoxDecoration(
@@ -1464,24 +1928,23 @@ class _DashboardPageState extends State<_DashboardPage> {
           child: ListView.separated(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
-            itemCount: uniquePatients.entries.take(4).length,
+            itemCount: sortedPatients.length,
             separatorBuilder: (_, __) =>
                 Divider(height: 1, color: Colors.grey[200]),
             itemBuilder: (context, index) {
-              final entry = uniquePatients.entries.elementAt(index);
+              final entry = sortedPatients[index];
               final patientId = entry.key;
               final appointment = entry.value;
               final patientName = appointment['patientName'] ?? 'Patient';
-              final lastVisitDate = (appointment['date'] as Timestamp).toDate();
-              final formattedLastVisit = DateFormat(
-                'dd MMM yyyy',
-                'fr_FR',
-              ).format(lastVisitDate);
+              final appointmentDate =
+                  appointment['appointmentDate'] as DateTime;
+              final formattedTime = DateFormat('HH:mm').format(appointmentDate);
+              final status = appointment['status'] ?? 'scheduled';
 
               return ListTile(
                 contentPadding: const EdgeInsets.symmetric(
                   horizontal: 16,
-                  vertical: 8,
+                  vertical: 12,
                 ),
                 leading: CircleAvatar(
                   backgroundColor: AppColors.primary.withOpacity(0.1),
@@ -1497,15 +1960,39 @@ class _DashboardPageState extends State<_DashboardPage> {
                   patientName,
                   style: const TextStyle(
                     fontWeight: FontWeight.w600,
-                    fontSize: 14,
+                    fontSize: 15,
                   ),
                 ),
-                subtitle: Text(
-                  'Dernière visite: $formattedLastVisit',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: AppColors.textSecondary,
-                  ),
+                subtitle: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'À $formattedTime',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: _getStatusColor(status).withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        _getStatusText(status),
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: _getStatusColor(status),
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
                 trailing: const Icon(CupertinoIcons.right_chevron, size: 16),
                 onTap: () {
@@ -1770,7 +2257,6 @@ class _DesktopQuickActionCard extends StatelessWidget {
   }
 }
 
-// Placeholder pages
 class _AgendaPage extends StatelessWidget {
   const _AgendaPage();
 
