@@ -4,6 +4,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'core/theme/app_theme.dart';
 import 'core/services/firebase_service.dart';
@@ -40,6 +42,14 @@ void main() async {
     // print('🔥 Initializing Firebase...');
     await FirebaseService().initialize();
     // print('✅ Firebase initialized successfully');
+
+    // Configuration spécifique pour le web - Désactiver la persistance Firestore
+    if (kIsWeb) {
+      FirebaseFirestore.instance.settings = const Settings(
+        persistenceEnabled: false,
+      );
+      // print('🌐 Firestore web persistence disabled');
+    }
 
     // print('📦 Initializing Hive...');
     await HiveService().initialize();
@@ -138,10 +148,25 @@ class _AuthWrapperState extends State<AuthWrapper> {
   }
 
   Widget _buildHomePage(UserModel user) {
-    if (user.role == AppConstants.roleDoctor) {
-      return const DoctorHomePage();
-    } else {
-      return const PatientHomePage();
-    }
+    return FutureBuilder<DocumentSnapshot>(
+      future: FirebaseFirestore.instance
+          .collection('doctors')
+          .doc(user.id)
+          .get(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          );
+        }
+        if (snapshot.hasData && snapshot.data!.exists) {
+          // L'utilisateur est un docteur
+          return const DoctorHomePage();
+        } else {
+          // Sinon, c'est un patient
+          return const PatientHomePage();
+        }
+      },
+    );
   }
 }

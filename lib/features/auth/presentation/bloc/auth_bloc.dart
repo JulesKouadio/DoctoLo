@@ -134,8 +134,15 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         final updatedFirebaseUser = _firebaseService.currentUser;
         final isEmailVerified = updatedFirebaseUser?.emailVerified ?? false;
 
-        // Récupérer les données utilisateur depuis Hive
-        UserModel? user = _hiveService.getCurrentUser();
+        // Récupérer les données utilisateur depuis Hive (peut échouer sur web)
+        UserModel? user;
+        try {
+          user = _hiveService.getCurrentUser();
+          print('✅ User loaded from Hive cache');
+        } catch (hiveError) {
+          print('⚠️ Hive not available: $hiveError');
+          user = null;
+        }
 
         // Si pas en local, récupérer depuis Firebase
         if (user == null) {
@@ -149,8 +156,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
             user = UserModel.fromJson({
               ...userData,
               'id': userDoc.id,
-              'isVerified':
-                  isEmailVerified, // Utiliser le statut de Firebase Auth
+              'isVerified': isEmailVerified,
             });
 
             // Si l'email vient d'être vérifié, mettre à jour Firestore
@@ -162,33 +168,49 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
               print('✅ Email vérifié! isVerified mis à jour dans Firestore');
             }
 
-            await _hiveService.saveUser(user);
+            // Essayer de sauvegarder dans Hive (optionnel)
+            try {
+              await _hiveService.saveUser(user);
+              print('✅ User saved to Hive cache');
+            } catch (hiveError) {
+              print('⚠️ Could not save to Hive: $hiveError');
+            }
           }
         } else {
           // L'utilisateur est en cache local, vérifier si le statut a changé
           if (isEmailVerified && !user.isVerified) {
-            // Mettre à jour Firestore et le cache local
             await _firebaseService.updateDocument('users', firebaseUser.uid, {
               'isVerified': true,
             });
 
             user = user.copyWith(isVerified: true);
-            await _hiveService.saveUser(user);
-            print(
-              '✅ Email vérifié! isVerified mis à jour dans Firestore et cache local',
-            );
+
+            try {
+              await _hiveService.saveUser(user);
+              print(
+                '✅ Email vérifié! Mis à jour dans Firestore et cache local',
+              );
+            } catch (hiveError) {
+              print('⚠️ Could not update Hive: $hiveError');
+            }
           }
         }
 
         if (user != null) {
           // Charger les paramètres de l'utilisateur
-          await _settingsService.loadUserSettings(user.id);
+          try {
+            await _settingsService.loadUserSettings(user.id);
+          } catch (e) {
+            print('⚠️ Could not load settings: $e');
+          }
 
           // Initialiser les listeners de synchronisation
-          _syncService.initializeListeners(user.id);
-
-          // Synchronisation initiale
-          await _syncService.initialSync(user.id);
+          try {
+            _syncService.initializeListeners(user.id);
+            await _syncService.initialSync(user.id);
+          } catch (e) {
+            print('⚠️ Could not initialize sync: $e');
+          }
 
           emit(AuthAuthenticated(user: user));
         } else {
@@ -198,6 +220,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         emit(AuthUnauthenticated());
       }
     } catch (e) {
+      print('❌ AuthCheckRequested error: $e');
       emit(AuthError(message: e.toString()));
     }
   }
@@ -206,66 +229,112 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     AuthSignInRequested event,
     Emitter<AuthState> emit,
   ) async {
+    print('🔷 AuthBloc: _onSignInRequested started');
     emit(AuthLoading());
 
     try {
-      // Connexion Firebase
+      // ÉTAPE 1: Connexion Firebase
+      print('🔐 Step 1: Signing in to Firebase Auth...');
       final userCredential = await _firebaseService.signInWithEmail(
         event.email,
         event.password,
       );
+      print('✅ Firebase Auth sign in successful');
+      print('   UID: ${userCredential.user!.uid}');
 
-      // Vérifier si l'email a été vérifié dans Firebase Auth
+      // ÉTAPE 2: Vérifier si l'email a été vérifié dans Firebase Auth
+      print('📧 Step 2: Checking email verification status...');
       await userCredential.user!.reload();
       final updatedFirebaseUser = _firebaseService.currentUser;
       final isEmailVerified = updatedFirebaseUser?.emailVerified ?? false;
+      print('   Email verified: $isEmailVerified');
 
-      // Récupérer les données utilisateur
+      // ÉTAPE 3: Récupérer les données utilisateur depuis Firestore
+      print('📥 Step 3: Fetching user data from Firestore...');
       final userDoc = await _firebaseService.getDocument(
         'users',
         userCredential.user!.uid,
       );
 
-      if (userDoc.exists) {
-        final userData = userDoc.data() as Map<String, dynamic>;
-        final currentIsVerified = userData['isVerified'] ?? false;
+      if (!userDoc.exists) {
+        print('❌ User document not found in Firestore!');
+        throw Exception(
+          'Les données utilisateur sont introuvables. Veuillez réessayer.',
+        );
+      }
 
-        // Créer l'objet user avec le statut de vérification à jour
-        final user = UserModel.fromJson({
-          ...userData,
-          'id': userDoc.id,
-          'isVerified': isEmailVerified, // Utiliser le statut de Firebase Auth
+      print('✅ User document found in Firestore');
+      final userData = userDoc.data() as Map<String, dynamic>;
+      print('   User data: $userData');
+
+      final currentIsVerified = userData['isVerified'] ?? false;
+
+      // ÉTAPE 4: Créer l'objet user avec le statut de vérification à jour
+      print('👤 Step 4: Creating user model...');
+      final user = UserModel.fromJson({
+        ...userData,
+        'id': userDoc.id,
+        'isVerified': isEmailVerified,
+      });
+      print('✅ User model created');
+      print('   User ID: ${user.id}');
+      print('   Email: ${user.email}');
+      print('   Role: ${user.role}');
+      print('   Name: ${user.firstName} ${user.lastName}');
+
+      // ÉTAPE 5: Mettre à jour Firestore si nécessaire
+      print('💾 Step 5: Updating Firestore...');
+      if (isEmailVerified && !currentIsVerified) {
+        await _firebaseService.updateDocument('users', user.id, {
+          'isVerified': true,
+          'lastLogin': DateTime.now().toIso8601String(),
         });
+        print('✅ Email verified! isVerified updated in Firestore');
+      } else {
+        await _firebaseService.updateDocument('users', user.id, {
+          'lastLogin': DateTime.now().toIso8601String(),
+        });
+        print('✅ Last login updated in Firestore');
+      }
 
-        // Si l'email vient d'être vérifié, mettre à jour Firestore
-        if (isEmailVerified && !currentIsVerified) {
-          await _firebaseService.updateDocument('users', user.id, {
-            'isVerified': true,
-            'lastLogin': DateTime.now().toIso8601String(),
-          });
-          print('✅ Email vérifié! isVerified mis à jour dans Firestore');
-        } else {
-          // Sinon juste mettre à jour lastLogin
-          await _firebaseService.updateDocument('users', user.id, {
-            'lastLogin': DateTime.now().toIso8601String(),
-          });
-        }
-
-        // Sauvegarder en local
+      // ÉTAPE 6: Sauvegarder en local (optionnel, peut échouer sur web)
+      print('📱 Step 6: Saving user to local storage (Hive)...');
+      try {
         await _hiveService.saveUser(user);
+        print('✅ User saved to Hive');
+      } catch (hiveError) {
+        print('⚠️ Hive save failed (non-critical): $hiveError');
+        print('   User will still be authenticated using Firebase data');
+      }
 
-        // Charger les paramètres de l'utilisateur
+      // ÉTAPE 7: Charger les paramètres de l'utilisateur
+      print('⚙️ Step 7: Loading user settings...');
+      try {
         await _settingsService.loadUserSettings(user.id);
+        print('✅ User settings loaded');
+      } catch (settingsError) {
+        print('⚠️ Settings load failed (non-critical): $settingsError');
+      }
 
-        // Initialiser la synchronisation
+      // ÉTAPE 8: Initialiser la synchronisation
+      print('🔄 Step 8: Initializing sync...');
+      try {
         _syncService.initializeListeners(user.id);
         await _syncService.initialSync(user.id);
-
-        emit(AuthAuthenticated(user: user));
-      } else {
-        throw Exception('User data not found');
+        print('✅ Sync initialized');
+      } catch (syncError) {
+        print('⚠️ Sync initialization failed (non-critical): $syncError');
       }
+
+      print('🎉 Sign in completed successfully!');
+      print('   Emitting AuthAuthenticated state...');
+      emit(AuthAuthenticated(user: user));
+      print('✅ AuthAuthenticated state emitted');
     } on FirebaseAuthException catch (e) {
+      print('❌ FirebaseAuthException during sign in:');
+      print('   Code: ${e.code}');
+      print('   Message: ${e.message}');
+
       String message = 'Une erreur est survenue';
 
       switch (e.code) {
@@ -278,6 +347,9 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         case 'invalid-email':
           message = 'Email invalide';
           break;
+        case 'invalid-credential':
+          message = 'Email ou mot de passe incorrect';
+          break;
         case 'user-disabled':
           message = 'Ce compte a été désactivé';
           break;
@@ -289,7 +361,12 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       }
 
       emit(AuthError(message: message));
-    } catch (e) {
+    } catch (e, stackTrace) {
+      print('❌ Generic error during sign in:');
+      print('   Type: ${e.runtimeType}');
+      print('   Error: $e');
+      print('   Stack trace: $stackTrace');
+
       emit(AuthError(message: 'Erreur de connexion: ${e.toString()}'));
     }
   }
@@ -305,10 +382,8 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     emit(AuthLoading());
 
     try {
-      // ÉTAPE 1: Créer uniquement le compte Firebase Auth avec email/password
-      print(
-        '📧 Step 1: Creating Firebase Auth account (email/password only)...',
-      );
+      // ÉTAPE 1: Créer le compte Firebase Auth
+      print('📧 Step 1: Creating Firebase Auth account...');
       final userCredential = await _firebaseService.signUpWithEmail(
         event.email,
         event.password,
@@ -317,8 +392,8 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       print('   UID: ${userCredential.user!.uid}');
       print('   Email: ${userCredential.user!.email}');
 
-      // ÉTAPE 2: Créer le modèle utilisateur avec toutes les infos
-      print('👤 Step 2: Creating user profile with additional info...');
+      // ÉTAPE 2: Créer le modèle utilisateur
+      print('👤 Step 2: Creating user profile...');
       final user = UserModel(
         id: userCredential.user!.uid,
         email: event.email,
@@ -345,52 +420,34 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         print('✅ User profile saved to Firestore successfully');
       } catch (firestoreError) {
         print('⚠️ Firestore save failed: $firestoreError');
-        print('   Error type: ${firestoreError.runtimeType}');
-        print('   Will continue with local save...');
       }
 
-      // ÉTAPE 4: Sauvegarder en local avec Hive
+      // ÉTAPE 4: Sauvegarder en local avec Hive (optionnel)
       print('📱 Step 4: Saving user profile to local storage (Hive)...');
       try {
         await _hiveService.saveUser(user);
         print('✅ User profile saved to Hive successfully');
       } catch (hiveError) {
-        print('⚠️ Hive save failed: $hiveError');
-        print('   User can still use the app with Firebase data');
+        print('⚠️ Hive save failed (non-critical): $hiveError');
       }
 
-      // ÉTAPE 5: Envoyer email de vérification (DÉSACTIVÉ)
-      // print('📨 Step 5: Sending verification email...');
-      // try {
-      //   await userCredential.user!.sendEmailVerification();
-      //   print('✅ Verification email sent successfully');
-      // } catch (emailError) {
-      //   print(
-      //     '⚠️ Verification email failed but registration succeeded: $emailError',
-      //   );
-      // }
-
-      // ÉTAPE 6: Initialiser la synchronisation
-      print('🔄 Step 6: Initializing sync listeners...');
+      // ÉTAPE 5: Initialiser la synchronisation
+      print('🔄 Step 5: Initializing sync listeners...');
       try {
         _syncService.initializeListeners(user.id);
         print('✅ Sync listeners initialized');
       } catch (syncError) {
-        print('⚠️ Sync initialization failed: $syncError');
+        print('⚠️ Sync initialization failed (non-critical): $syncError');
       }
 
       print('🎉 Registration completed successfully!');
-      print('   User can now use the app');
+      print('   Emitting AuthAuthenticated state...');
       emit(AuthAuthenticated(user: user));
+      print('✅ AuthAuthenticated state emitted');
     } on FirebaseAuthException catch (e) {
-      print('❌ FirebaseAuthException caught during account creation:');
+      print('❌ FirebaseAuthException during registration:');
       print('   Code: ${e.code}');
       print('   Message: ${e.message}');
-      print('   Plugin: ${e.plugin}');
-      print('   Email: ${e.email}');
-      print('   Credential: ${e.credential}');
-      print('   Stack trace: ${e.stackTrace}');
-      print('   Full error: $e');
 
       String message = 'Une erreur est survenue';
 
@@ -406,7 +463,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
           break;
         case 'internal-error':
           message =
-              'Erreur interne Firebase: ${e.message ?? "Configuration Firebase incorrecte"}';
+              'Erreur interne Firebase: ${e.message ?? "Configuration incorrecte"}';
           break;
         default:
           message = e.message ?? 'Erreur d\'inscription';
@@ -414,7 +471,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
 
       emit(AuthError(message: message));
     } catch (e, stackTrace) {
-      print('❌ Generic Exception caught:');
+      print('❌ Generic error during registration:');
       print('   Type: ${e.runtimeType}');
       print('   Error: $e');
       print('   Stack trace: $stackTrace');
@@ -431,7 +488,14 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
 
     try {
       await _firebaseService.signOut();
-      await _hiveService.deleteCurrentUser();
+
+      // Essayer de supprimer les données Hive (peut échouer sur web)
+      try {
+        await _hiveService.deleteCurrentUser();
+      } catch (e) {
+        print('⚠️ Could not delete Hive data: $e');
+      }
+
       _syncService.dispose();
 
       emit(AuthUnauthenticated());

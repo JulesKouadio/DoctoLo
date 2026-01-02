@@ -42,7 +42,7 @@ class DefaultFirebaseOptions {
 
   static const FirebaseOptions web = FirebaseOptions(
     apiKey: 'AIzaSyDVoPZ9qKpMaBVGdT1uiCbMjF7Zlxu3fns',
-    appId: '1:60493351906:web:83e10f0ed9a7c5dd58c7bb',
+    appId: '1:60493351906:web:6c912d98e36cd8d458c7bb',
     messagingSenderId: '60493351906',
     projectId: 'doctolo',
     authDomain: 'doctolo.firebaseapp.com',

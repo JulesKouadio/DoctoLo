@@ -3,7 +3,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../bloc/auth_bloc.dart';
 import '../../../../core/theme/app_colors.dart';
-import '../../../../core/utils/responsive.dart';
+import '../../../../core/utils/size_config.dart';
 import '../../../../core/l10n/app_localizations.dart';
 import 'register_page.dart';
 import 'forgot_password_page.dart';
@@ -30,37 +30,91 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   void _handleLogin() {
+    print('🔵 _handleLogin called');
+
     if (_formKey.currentState!.validate()) {
+      print('✅ Form validation passed');
+      print('📝 Login data:');
+      print('  - Email: ${_emailController.text.trim()}');
+      print('  - Password length: ${_passwordController.text.length}');
+      print('🚀 Dispatching AuthSignInRequested event...');
+
       context.read<AuthBloc>().add(
         AuthSignInRequested(
           email: _emailController.text.trim(),
           password: _passwordController.text,
         ),
       );
+    } else {
+      print('❌ Form validation failed');
+    }
+  }
+
+  // Détermine le type d'appareil
+  DeviceType _getDeviceType(BuildContext context) {
+    final width = MediaQuery.of(context).size.width;
+    if (width >= 1024) {
+      return DeviceType.desktop;
+    } else if (width >= 600) {
+      return DeviceType.tablet;
+    } else {
+      return DeviceType.mobile;
+    }
+  }
+
+  // Retourne la largeur maximale du formulaire selon l'appareil
+  double _getMaxFormWidth(DeviceType deviceType) {
+    switch (deviceType) {
+      case DeviceType.desktop:
+        return 450;
+      case DeviceType.tablet:
+        return 500;
+      case DeviceType.mobile:
+        return double.infinity;
+    }
+  }
+
+  // Retourne le padding selon l'appareil
+  double _getPadding(DeviceType deviceType) {
+    switch (deviceType) {
+      case DeviceType.desktop:
+        return 48.0;
+      case DeviceType.tablet:
+        return 32.0;
+      case DeviceType.mobile:
+        return 24.0;
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    final deviceType = context.deviceType;
-    final adaptive = AdaptiveValues(context);
-    final maxFormWidth = adaptive.maxFormWidth;
-    final padding = adaptive.spacing(mobile: 24, tablet: 32, desktop: 48);
+    final deviceType = _getDeviceType(context);
+    final maxFormWidth = _getMaxFormWidth(deviceType);
+    final padding = _getPadding(deviceType);
 
     return Scaffold(
       backgroundColor: Colors.white,
       body: BlocConsumer<AuthBloc, AuthState>(
         listener: (context, state) {
+          print('🔄 LoginPage state changed: ${state.runtimeType}');
+
           if (state is AuthError) {
+            print('❌ AuthError: ${state.message}');
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text(state.message),
                 backgroundColor: AppColors.error,
+                duration: const Duration(seconds: 4),
               ),
             );
           } else if (state is AuthAuthenticated) {
+            print('✅ AuthAuthenticated: Login successful');
+            print('   User ID: ${state.user.id}');
+            print('   Email: ${state.user.email}');
             // Navigation gérée dans main.dart
+          } else if (state is AuthLoading) {
+            print('⏳ AuthLoading: Login in progress...');
           }
         },
         builder: (context, state) {
@@ -133,6 +187,8 @@ class _LoginPageState extends State<LoginPage> {
                             controller: _emailController,
                             keyboardType: TextInputType.emailAddress,
                             textInputAction: TextInputAction.next,
+                            autocorrect: false,
+                            enableSuggestions: false,
                             style: TextStyle(
                               fontSize: deviceType == DeviceType.desktop
                                   ? 16
@@ -150,13 +206,13 @@ class _LoginPageState extends State<LoginPage> {
                               ),
                             ),
                             validator: (value) {
-                              if (value == null || value.isEmpty) {
-                                return l10n.email;
+                              if (value == null || value.trim().isEmpty) {
+                                return 'Veuillez entrer votre email';
                               }
                               if (!RegExp(
-                                r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$',
-                              ).hasMatch(value)) {
-                                return l10n.email;
+                                r'^[\w\-\.]+@([\w\-]+\.)+[\w\-]{2,4}$',
+                              ).hasMatch(value.trim())) {
+                                return 'Veuillez entrer un email valide';
                               }
                               return null;
                             },
@@ -170,6 +226,8 @@ class _LoginPageState extends State<LoginPage> {
                             controller: _passwordController,
                             obscureText: _obscurePassword,
                             textInputAction: TextInputAction.done,
+                            autocorrect: false,
+                            enableSuggestions: false,
                             onFieldSubmitted: (_) => _handleLogin(),
                             style: TextStyle(
                               fontSize: deviceType == DeviceType.desktop
@@ -201,10 +259,10 @@ class _LoginPageState extends State<LoginPage> {
                             ),
                             validator: (value) {
                               if (value == null || value.isEmpty) {
-                                return l10n.password;
+                                return 'Veuillez entrer votre mot de passe';
                               }
                               if (value.length < 6) {
-                                return l10n.password;
+                                return 'Le mot de passe doit contenir au moins 6 caractères';
                               }
                               return null;
                             },
@@ -382,3 +440,5 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 }
+
+enum DeviceType { mobile, tablet, desktop }
